@@ -253,6 +253,11 @@ function AlarmRow({ a }: { a: Alarm }) {
               <Badge color={meta.color} bg={meta.soft} line={meta.line}>
                 {meta.label}
               </Badge>
+              {a.auto && (
+                <Badge color="var(--tx-2)" bg="var(--panel-hi)" line="var(--line-2)">
+                  oto
+                </Badge>
+              )}
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--tx-2)', marginTop: 4 }}>{a.detail}</div>
             <div

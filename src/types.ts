@@ -103,6 +103,7 @@ export interface Alarm {
   ts: string;
   state: AlarmState;
   rule: string;
+  auto: boolean;
 }
 
 export interface LogLine {

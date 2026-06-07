@@ -99,6 +99,7 @@ export interface ApiAlarm {
   title: string;
   detail: string;
   rule: string;
+  auto: boolean;
   triggeredAt: string;
   acknowledgedAt: string | null;
   resolvedAt: string | null;

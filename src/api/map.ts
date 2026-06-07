@@ -90,5 +90,6 @@ export function mapAlarm(a: ApiAlarm, appName: string, containerName: string): A
     ts: relativeTime(a.triggeredAt),
     state: a.state as AlarmState,
     rule: a.rule,
+    auto: a.auto,
   };
 }
