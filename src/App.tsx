@@ -9,6 +9,7 @@ import type { App as AppModel } from '@/types';
 import { Alarms } from '@/screens/Alarms';
 import { AppDetail } from '@/screens/AppDetail';
 import { ContainerDetail } from '@/screens/ContainerDetail';
+import { IncidentDetail } from '@/screens/IncidentDetail';
 import { Overview } from '@/screens/Overview';
 import { Placeholder } from '@/screens/Placeholder';
 
@@ -94,7 +95,7 @@ export function App() {
               <Route path="/app/:id" element={<AppDetail />} />
               <Route path="/app/:id/container/:cid" element={<ContainerDetail />} />
               <Route path="/alarms" element={<Alarms />} />
-              <Route path="/incident/:id" element={<Placeholder title="Olay detayı" />} />
+              <Route path="/incident/:id" element={<IncidentDetail />} />
               <Route path="/add" element={<Placeholder title="Uygulama ekle" />} />
               <Route path="/settings" element={<Placeholder title="Ayarlar" />} />
               <Route path="*" element={<Placeholder title="Sayfa bulunamadı" />} />
