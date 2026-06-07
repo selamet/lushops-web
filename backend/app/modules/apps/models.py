@@ -1,9 +1,13 @@
 import enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Enum, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, IdMixin, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.modules.containers.models import Container
 
 
 class Environment(str, enum.Enum):
@@ -43,6 +47,10 @@ class App(IdMixin, TimestampMixin, Base):
     vm_machine: Mapped[str | None] = mapped_column("vmMachine", String(60), default=None)
     vm_ip: Mapped[str | None] = mapped_column("vmIp", String(45), default=None)
     vm_os: Mapped[str | None] = mapped_column("vmOs", String(80), default=None)
+
+    containers: Mapped[list["Container"]] = relationship(
+        back_populates="app", cascade="all, delete-orphan", passive_deletes=True
+    )
 
     @property
     def vm(self) -> dict:

@@ -6,5 +6,6 @@ As each module is added, import its models here so they register on `Base.metada
 from app.core.database import Base
 from app.modules.apps.models import App
 from app.modules.auth.models import User
+from app.modules.containers.models import Container, ContainerAction, LogEntry
 
-__all__ = ["Base", "User", "App"]
+__all__ = ["Base", "User", "App", "Container", "ContainerAction", "LogEntry"]
