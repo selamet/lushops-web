@@ -29,12 +29,14 @@ export function ContainerDetail() {
   const navigate = useNavigate();
   const openTerminal = useOverlay((s) => s.openTerminal);
   const apps = useFleet((s) => s.apps);
+  const loaded = useFleet((s) => s.loaded);
   const [tab, setTab] = useState<Tab>('metrics');
 
   const app = apps.find((a) => a.id === id);
   const c = app?.containers.find((x) => x.id === cid);
   const logs = useMemo(() => (c ? genLogs(c) : []), [c?.id, c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (!loaded) return null;
   if (!app || !c) return <Navigate to={paths.overview()} replace />;
 
   const statusColor = STATUS[c.status]?.color;

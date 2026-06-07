@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Card, Eyebrow, Icon, StatusDot } from '@/components/ui';
-import { ALARMS } from '@/data/alarms';
 import { SEV } from '@/data/services';
 import { paths } from '@/lib/routes';
+import { useAlarms } from '@/store/alarms';
 import { useOverlay } from '@/store/overlay';
 import type { Alarm, AlarmState, Severity } from '@/types';
 
@@ -20,23 +20,24 @@ const STATE_META: Record<AlarmState, { l: string; c: string }> = {
 export function Alarms() {
   const navigate = useNavigate();
   const toast = useOverlay((s) => s.toast);
+  const alarms = useAlarms((s) => s.alarms);
   const [filter, setFilter] = useState<StateFilter>('active');
   const [sevFilter, setSevFilter] = useState<SevFilter>('all');
 
   const counts = {
-    active: ALARMS.filter((a) => a.state === 'active').length,
-    acknowledged: ALARMS.filter((a) => a.state === 'acknowledged').length,
-    resolved: ALARMS.filter((a) => a.state === 'resolved').length,
+    active: alarms.filter((a) => a.state === 'active').length,
+    acknowledged: alarms.filter((a) => a.state === 'acknowledged').length,
+    resolved: alarms.filter((a) => a.state === 'resolved').length,
   };
 
-  let list = ALARMS.filter((a) => filter === 'all' || a.state === filter);
+  let list = alarms.filter((a) => filter === 'all' || a.state === filter);
   if (sevFilter !== 'all') list = list.filter((a) => a.sev === sevFilter);
 
   const tabs: Array<{ k: StateFilter; label: string; n: number; color: string }> = [
     { k: 'active', label: 'Aktif', n: counts.active, color: 'var(--crit)' },
     { k: 'acknowledged', label: 'Onaylandı', n: counts.acknowledged, color: 'var(--warn)' },
     { k: 'resolved', label: 'Çözüldü', n: counts.resolved, color: 'var(--ok)' },
-    { k: 'all', label: 'Tümü', n: ALARMS.length, color: 'var(--tx-2)' },
+    { k: 'all', label: 'Tümü', n: alarms.length, color: 'var(--tx-2)' },
   ];
 
   const sevTabs: SevFilter[] = ['all', 'critical', 'warning', 'info'];
@@ -78,7 +79,7 @@ export function Alarms() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         {(['critical', 'warning', 'info'] as Severity[]).map((s) => {
-          const n = ALARMS.filter((a) => a.sev === s && a.state === 'active').length;
+          const n = alarms.filter((a) => a.sev === s && a.state === 'active').length;
           const meta = SEV[s];
           return (
             <Card key={s} pad={16} glow={s === 'critical' && n > 0}>
@@ -214,6 +215,8 @@ export function Alarms() {
 function AlarmRow({ a }: { a: Alarm }) {
   const navigate = useNavigate();
   const toast = useOverlay((s) => s.toast);
+  const acknowledge = useAlarms((s) => s.acknowledge);
+  const resolve = useAlarms((s) => s.resolve);
   const [h, setH] = useState(false);
   const meta = SEV[a.sev];
   const stateMeta = STATE_META[a.state];
@@ -308,14 +311,18 @@ function AlarmRow({ a }: { a: Alarm }) {
                 <Button
                   variant="soft"
                   size="sm"
-                  onClick={() => toast('Olay onaylandı', { type: 'warn', sub: a.container })}
+                  onClick={() =>
+                    acknowledge(a.id).then(() => toast('Olay onaylandı', { type: 'warn', sub: a.container }))
+                  }
                 >
                   Onayla
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => toast('Olay çözüldü', { type: 'success', sub: a.container })}
+                  onClick={() =>
+                    resolve(a.id).then(() => toast('Olay çözüldü', { type: 'success', sub: a.container }))
+                  }
                 >
                   Çöz
                 </Button>

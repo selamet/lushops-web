@@ -1,6 +1,6 @@
 import { AppCard } from '@/components/AppCard';
 import { Button, Card, Eyebrow, Icon, type IconName } from '@/components/ui';
-import { ALARMS } from '@/data/alarms';
+import { useAlarms } from '@/store/alarms';
 import { useFleet } from '@/store/fleet';
 
 interface Kpi {
@@ -14,13 +14,14 @@ interface Kpi {
 /** Fleet-wide health at a glance: KPI row plus the app card grid. */
 export function Overview() {
   const apps = useFleet((s) => s.apps);
+  const alarms = useAlarms((s) => s.alarms);
 
   const containers = apps.flatMap((a) => a.containers);
   const totalContainers = containers.length;
   const running = containers.filter((c) => c.status === 'running' && c.health !== 'unhealthy').length;
   const problem = totalContainers - running;
-  const activeAlarms = ALARMS.filter((a) => a.state === 'active').length;
-  const crit = ALARMS.filter((a) => a.state === 'active' && a.sev === 'critical').length;
+  const activeAlarms = alarms.filter((a) => a.state === 'active').length;
+  const crit = alarms.filter((a) => a.state === 'active' && a.sev === 'critical').length;
   const runningContainers = containers.filter((c) => c.status === 'running');
   const avgCpu = Math.round(
     runningContainers.reduce((a, c) => a + c.cpu, 0) / (runningContainers.length || 1),

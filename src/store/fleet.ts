@@ -1,45 +1,64 @@
 import { create } from 'zustand';
-import { APPS } from '@/data/apps';
-import { clamp } from '@/lib/series';
-import type { App, Container } from '@/types';
+import { api } from '@/api/endpoints';
+import { mapApp, mapContainer } from '@/api/map';
+import type { ApiError } from '@/api/client';
+import type { App } from '@/types';
 
-/** Apply a small random walk to one container's live metrics. */
-function jitterContainer(c: Container): Container {
-  if (c.status === 'exited') return c;
-  const j = (base: number, amp: number, lo: number, hi: number) =>
-    clamp(+(base + (Math.random() - 0.5) * amp).toFixed(1), lo, hi);
-  const cpu = j(c.cpu, c.cpu * 0.12 + 1.5, 0, 100);
-  const memPct = j(c.memPct, 2, 0, 100);
-  const net = j(c.net, c.net * 0.2 + 0.3, 0, 999);
-  return {
-    ...c,
-    cpu,
-    memPct,
-    net,
-    mem: Math.round((c.memLimit * memPct) / 100),
-    cpuSeries: [...c.cpuSeries.slice(1), cpu],
-    memSeries: [...c.memSeries.slice(1), memPct],
-    netSeries: [...c.netSeries.slice(1), net],
-  };
+interface FleetData {
+  apps: App[];
+  appNameById: Record<string, string>;
+  containerNameById: Record<string, string>;
 }
 
-interface FleetState {
-  apps: App[];
-  /** Advance every container's live metrics by one step. */
-  tick: () => void;
+interface FleetState extends FleetData {
+  loaded: boolean;
+  error: string | null;
+  load: () => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
+/** Fetch every app with its containers and build id→name lookups for alarm display. */
+async function fetchFleet(): Promise<FleetData> {
+  const apiApps = await api.listApps();
+  const loaded = await Promise.all(
+    apiApps.map(async (a) => ({ a, containers: await api.listContainers(a.id) })),
+  );
+
+  const appNameById: Record<string, string> = {};
+  const containerNameById: Record<string, string> = {};
+  const apps = loaded.map(({ a, containers }) => {
+    appNameById[a.id] = a.name;
+    const mapped = containers.map((c) => {
+      containerNameById[c.id] = c.name;
+      return mapContainer(c);
+    });
+    return mapApp(a, mapped);
+  });
+  return { apps, appNameById, containerNameById };
 }
 
 /**
- * Holds the live fleet. `tick` simulates streaming metrics; in production this
- * store would be fed by a WebSocket or polling layer instead.
+ * Holds the live fleet, loaded from the API. `refresh` re-polls without flipping
+ * the `loaded` flag, so the UI updates in place rather than flashing a spinner.
  */
 export const useFleet = create<FleetState>((set) => ({
-  apps: structuredClone(APPS),
-  tick: () =>
-    set((s) => ({
-      apps: s.apps.map((app) => ({
-        ...app,
-        containers: app.containers.map(jitterContainer),
-      })),
-    })),
+  apps: [],
+  appNameById: {},
+  containerNameById: {},
+  loaded: false,
+  error: null,
+  load: async () => {
+    try {
+      set({ ...(await fetchFleet()), loaded: true, error: null });
+    } catch (e) {
+      set({ loaded: true, error: (e as ApiError).message });
+    }
+  },
+  refresh: async () => {
+    try {
+      set({ ...(await fetchFleet()), error: null });
+    } catch {
+      // keep the last good snapshot on a transient refresh failure
+    }
+  },
 }));

@@ -3,7 +3,7 @@ import { Route, Routes, matchPath, useLocation } from 'react-router-dom';
 import { CommandPalette } from '@/components/overlays/CommandPalette';
 import { OverlayHost } from '@/components/overlays/OverlayHost';
 import { CriticalBanner, Sidebar, Topbar } from '@/components/layout';
-import { ALARMS } from '@/data/alarms';
+import { useAlarms } from '@/store/alarms';
 import { useFleet } from '@/store/fleet';
 import type { App as AppModel } from '@/types';
 import { AddApp } from '@/screens/AddApp';
@@ -15,7 +15,7 @@ import { NotFound } from '@/screens/NotFound';
 import { Overview } from '@/screens/Overview';
 import { Settings } from '@/screens/Settings';
 
-const TICK_MS = 2200;
+const REFRESH_MS = 15000;
 
 /** Derive the topbar title from the current route and live fleet data. */
 function pageTitle(pathname: string, apps: AppModel[]): string {
@@ -41,22 +41,32 @@ function pageTitle(pathname: string, apps: AppModel[]): string {
 
 export function App() {
   const apps = useFleet((s) => s.apps);
-  const tick = useFleet((s) => s.tick);
+  const loadFleet = useFleet((s) => s.load);
+  const refreshFleet = useFleet((s) => s.refresh);
+  const alarms = useAlarms((s) => s.alarms);
+  const loadAlarms = useAlarms((s) => s.load);
+  const refreshAlarms = useAlarms((s) => s.refresh);
   const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
 
   const [cmdOpen, setCmdOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
-  const activeAll = ALARMS.filter((a) => a.state === 'active');
+  const activeAll = alarms.filter((a) => a.state === 'active');
   const activeCrit = activeAll.filter((a) => a.sev === 'critical');
   const showBanner = activeCrit.length > 0 && !bannerDismissed && pathname !== '/alarms';
 
-  // Live metric simulation.
+  // Load the fleet then alarms (alarm names resolve via fleet lookups), then poll.
   useEffect(() => {
-    const t = setInterval(tick, TICK_MS);
+    (async () => {
+      await loadFleet();
+      await loadAlarms();
+    })();
+    const t = setInterval(() => {
+      refreshFleet().then(refreshAlarms);
+    }, REFRESH_MS);
     return () => clearInterval(t);
-  }, [tick]);
+  }, [loadFleet, loadAlarms, refreshFleet, refreshAlarms]);
 
   // ⌘K / Ctrl+K toggles the command palette.
   useEffect(() => {

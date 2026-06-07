@@ -1,21 +1,16 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AreaChart, Badge, Button, Card, Icon, StatusDot, type IconName } from '@/components/ui';
-import { ALARMS } from '@/data/alarms';
 import { SEV, STATUS } from '@/data/services';
 import { containerAction } from '@/lib/containerActions';
 import { paths } from '@/lib/routes';
+import { relativeTime } from '@/api/map';
+import { api } from '@/api/endpoints';
 import { useOverlay } from '@/store/overlay';
+import { useAlarms } from '@/store/alarms';
 import { useFleet } from '@/store/fleet';
-import type { Alarm, AlarmState } from '@/types';
-
-interface TimelineEntry {
-  icon: IconName;
-  color: string;
-  title: string;
-  detail: string;
-  t: string;
-}
+import type { ApiAlarmDetail } from '@/api/types';
+import type { AlarmState } from '@/types';
 
 interface RunbookStep {
   done: boolean;
@@ -36,7 +31,7 @@ const RUNBOOKS: Record<string, RunbookStep[]> = {
     { done: false, t: 'Bellek limitini artır veya sızıntıyı düzelt', c: 'mem_limit: 4096m' },
     { done: false, t: 'Container’ı yeniden başlat', c: 'docker compose up -d --force-recreate worker' },
   ],
-  'restarts > 5 / 10dk': [
+  'restarts > 5 / 10m': [
     { done: true, t: 'Healthcheck endpoint’ini doğrula', c: 'curl localhost:8000/health' },
     { done: true, t: 'Bağımlılıkların (redis/db) ayakta olduğunu kontrol et', c: 'docker compose ps' },
     { done: false, t: 'Son deploy’u geri al (rollback)', c: 'docker compose pull && up -d' },
@@ -48,27 +43,22 @@ const RUNBOOKS: Record<string, RunbookStep[]> = {
   ],
 };
 
-function buildTimeline(a: Alarm, state: AlarmState): TimelineEntry[] {
-  const entries: TimelineEntry[] = [
-    { icon: 'alert', color: SEV[a.sev].color, title: 'Alarm tetiklendi', detail: `Kural eşleşti: ${a.rule}`, t: a.ts },
-    { icon: 'slack', color: 'var(--acc)', title: 'Slack bildirimi gönderildi', detail: '#alerts-prod kanalına @here ile', t: a.ts },
-  ];
-  if (a.sev === 'critical') {
-    entries.push({
-      icon: 'restart',
-      color: 'var(--warn)',
-      title: 'Otomatik onarım denendi',
-      detail: `compose restart ${a.container} — başarısız (3/3)`,
-      t: 'az önce',
-    });
+/** Icon + color for a timeline event by its kind. */
+function eventMeta(kind: string, severityColor: string): { icon: IconName; color: string } {
+  switch (kind) {
+    case 'trigger':
+      return { icon: 'alert', color: severityColor };
+    case 'notify':
+      return { icon: 'slack', color: 'var(--acc)' };
+    case 'remediation':
+      return { icon: 'restart', color: 'var(--warn)' };
+    case 'ack':
+      return { icon: 'check', color: 'var(--warn)' };
+    case 'resolve':
+      return { icon: 'check', color: 'var(--ok)' };
+    default:
+      return { icon: 'activity', color: 'var(--tx-2)' };
   }
-  if (state === 'acknowledged') {
-    entries.push({ icon: 'check', color: 'var(--warn)', title: 'Emre K. tarafından onaylandı', detail: 'İnceleniyor olarak işaretlendi', t: '10 dk önce' });
-  }
-  if (state === 'resolved') {
-    entries.push({ icon: 'check', color: 'var(--ok)', title: 'Olay çözüldü', detail: 'Metrikler normale döndü, alarm temizlendi', t: a.ts });
-  }
-  return entries;
 }
 
 /** Full incident lifecycle: timeline, runbook, metrics and related alarms. */
@@ -77,25 +67,54 @@ export function IncidentDetail() {
   const navigate = useNavigate();
   const toast = useOverlay((s) => s.toast);
   const apps = useFleet((s) => s.apps);
+  const appNameById = useFleet((s) => s.appNameById);
+  const alarms = useAlarms((s) => s.alarms);
+  const acknowledge = useAlarms((s) => s.acknowledge);
+  const resolve = useAlarms((s) => s.resolve);
 
-  const alarm = ALARMS.find((a) => a.id === id);
-  const [state, setState] = useState<AlarmState>(alarm?.state ?? 'active');
-  const timeline = useMemo(() => (alarm ? buildTimeline(alarm, state) : []), [alarm, state]);
+  const [detail, setDetail] = useState<ApiAlarmDetail | null>(null);
+  const [missing, setMissing] = useState(false);
 
-  if (!alarm) return <Navigate to={paths.alarms()} replace />;
+  const refetch = useCallback(() => {
+    if (!id) return;
+    api
+      .getAlarm(id)
+      .then(setDetail)
+      .catch(() => setMissing(true));
+  }, [id]);
 
-  const app = apps.find((a) => a.id === alarm.app);
-  const container = app?.containers.find((c) => c.name === alarm.container);
-  const meta = SEV[alarm.sev];
-  const runbook = RUNBOOKS[alarm.rule] || RUNBOOKS.default;
-  const stateMeta = STATE_META[state];
-  const related = ALARMS.filter((x) => x.app === alarm.app && x.id !== alarm.id);
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
+  if (missing) return <Navigate to={paths.alarms()} replace />;
+  if (!detail) return null;
+
+  const meta = SEV[detail.severity];
+  const appName = appNameById[detail.appId] ?? detail.appId;
+  const app = apps.find((a) => a.id === appName);
+  const container = apps.flatMap((a) => a.containers).find((c) => c.id === detail.containerId);
+  const containerName = container?.name ?? '—';
+  const runbook = RUNBOOKS[detail.rule] || RUNBOOKS.default;
+  const stateMeta = STATE_META[detail.state];
+  const related = alarms.filter((x) => x.app === appName && x.id !== detail.id);
+
+  const onAcknowledge = () =>
+    acknowledge(detail.id).then(() => {
+      refetch();
+      toast('Olay onaylandı', { type: 'warn', sub: containerName });
+    });
+  const onResolve = () =>
+    resolve(detail.id).then(() => {
+      refetch();
+      toast('Olay çözüldü olarak işaretlendi', { type: 'success' });
+    });
 
   const metaCells: Array<[string, ReactNode]> = [
     [
       'Durum',
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-        <StatusDot color={stateMeta.c} size={7} pulse={state === 'active'} />
+        <StatusDot color={stateMeta.c} size={7} pulse={detail.state === 'active'} />
         <span style={{ color: stateMeta.c, fontWeight: 600 }}>{stateMeta.l}</span>
       </span>,
     ],
@@ -103,24 +122,24 @@ export function IncidentDetail() {
       'Uygulama',
       <span
         className="mono"
-        style={{ color: 'var(--acc-2)', cursor: 'pointer' }}
-        onClick={() => navigate(paths.app(alarm.app))}
+        style={{ color: 'var(--acc-2)', cursor: app ? 'pointer' : 'default' }}
+        onClick={() => app && navigate(paths.app(app.id))}
       >
-        {alarm.app}
+        {appName}
       </span>,
     ],
     [
       'Container',
       <span
         className="mono"
-        style={{ color: 'var(--tx-1)', cursor: container ? 'pointer' : 'default' }}
+        style={{ color: 'var(--tx-1)', cursor: container && app ? 'pointer' : 'default' }}
         onClick={() => container && app && navigate(paths.container(app.id, container.id))}
       >
-        {alarm.container}
+        {containerName}
       </span>,
     ],
-    ['İlk görülme', <span className="mono" style={{ color: 'var(--tx-1)' }}>{alarm.ts}</span>],
-    ['Kural', <span className="mono" style={{ color: 'var(--warn)' }}>{alarm.rule}</span>],
+    ['İlk görülme', <span className="mono" style={{ color: 'var(--tx-1)' }}>{relativeTime(detail.triggeredAt)}</span>],
+    ['Kural', <span className="mono" style={{ color: 'var(--warn)' }}>{detail.rule}</span>],
   ];
 
   return (
@@ -131,7 +150,7 @@ export function IncidentDetail() {
         </span>
         <Icon name="chevR" size={13} color="var(--tx-3)" />
         <span className="mono" style={{ color: 'var(--tx-1)' }}>
-          olay #{alarm.id.toUpperCase()}
+          olay #{detail.id.slice(0, 8).toUpperCase()}
         </span>
       </div>
 
@@ -157,44 +176,28 @@ export function IncidentDetail() {
               flexShrink: 0,
             }}
           >
-            <Icon name={alarm.sev === 'info' ? 'bell' : 'alert'} size={22} />
+            <Icon name={detail.severity === 'info' ? 'bell' : 'alert'} size={22} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, letterSpacing: '-0.01em' }}>
-                {alarm.title}
+                {detail.title}
               </h1>
               <Badge color={meta.color} bg={meta.soft} line={meta.line}>
                 {meta.label}
               </Badge>
             </div>
-            <div style={{ fontSize: 13, color: 'var(--tx-2)', marginTop: 5 }}>{alarm.detail}</div>
+            <div style={{ fontSize: 13, color: 'var(--tx-2)', marginTop: 5 }}>{detail.detail}</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {state === 'active' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              icon="check"
-              onClick={() => {
-                setState('acknowledged');
-                toast('Olay onaylandı', { type: 'warn', sub: 'Emre K. · inceleniyor' });
-              }}
-            >
+          {detail.state === 'active' && (
+            <Button variant="ghost" size="sm" icon="check" onClick={onAcknowledge}>
               Onayla
             </Button>
           )}
-          {state !== 'resolved' && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon="check"
-              onClick={() => {
-                setState('resolved');
-                toast('Olay çözüldü olarak işaretlendi', { type: 'success' });
-              }}
-            >
+          {detail.state !== 'resolved' && (
+            <Button variant="primary" size="sm" icon="check" onClick={onResolve}>
               Çöz
             </Button>
           )}
@@ -238,45 +241,50 @@ export function IncidentDetail() {
               <div
                 style={{ position: 'absolute', left: 15, top: 6, bottom: 6, width: 2, background: 'var(--line-2)' }}
               />
-              {timeline.map((e, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    gap: 14,
-                    position: 'relative',
-                    paddingBottom: i === timeline.length - 1 ? 0 : 20,
-                  }}
-                >
+              {detail.events.map((e, i) => {
+                const em = eventMeta(e.kind, meta.color);
+                return (
                   <div
+                    key={i}
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      display: 'grid',
-                      placeItems: 'center',
-                      background: 'var(--panel-2)',
-                      border: `2px solid ${e.color}`,
-                      color: e.color,
-                      flexShrink: 0,
-                      zIndex: 1,
+                      display: 'flex',
+                      gap: 14,
+                      position: 'relative',
+                      paddingBottom: i === detail.events.length - 1 ? 0 : 20,
                     }}
                   >
-                    <Icon name={e.icon} size={15} />
-                  </div>
-                  <div style={{ paddingTop: 3 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 600 }}>{e.title}</span>
-                      <span className="mono" style={{ fontSize: 11, color: 'var(--tx-3)' }}>
-                        {e.t}
-                      </span>
+                    <div
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        display: 'grid',
+                        placeItems: 'center',
+                        background: 'var(--panel-2)',
+                        border: `2px solid ${em.color}`,
+                        color: em.color,
+                        flexShrink: 0,
+                        zIndex: 1,
+                      }}
+                    >
+                      <Icon name={em.icon} size={15} />
                     </div>
-                    <div className="mono" style={{ fontSize: 12, color: 'var(--tx-2)', marginTop: 3 }}>
-                      {e.detail}
+                    <div style={{ paddingTop: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{e.title}</span>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--tx-3)' }}>
+                          {relativeTime(e.occurredAt)}
+                        </span>
+                      </div>
+                      {e.detail && (
+                        <div className="mono" style={{ fontSize: 12, color: 'var(--tx-2)', marginTop: 3 }}>
+                          {e.detail}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
 

@@ -25,11 +25,13 @@ export function AppDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const apps = useFleet((s) => s.apps);
+  const loaded = useFleet((s) => s.loaded);
   const { openTerminal, confirmAction, toast } = useOverlay();
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<ContainerStatus | 'all'>('all');
 
   const app = apps.find((a) => a.id === id);
+  if (!loaded) return null;
   if (!app) return <Navigate to={paths.overview()} replace />;
 
   const hc = appHealthColor(app.health);
