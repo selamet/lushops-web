@@ -1,71 +1,71 @@
-# Sentinel — Container İzleme & Alarm Panosu
+# Sentinel — Container Monitoring & Alarm Panel
 
-Google Cloud VM'lerde Docker Compose ile çalışan servisleri (Django/FastAPI,
-Nginx, PostgreSQL, Redis, Celery/Flower, RabbitMQ) izleyen, eşik kuralları
-tetiklendiğinde alarm üreten ve container'lara müdahale ettirebilen operasyon
-panosunun web arayüzü.
+Web interface for the operations panel that monitors services running with
+Docker Compose on Google Cloud VMs (Django/FastAPI, Nginx, PostgreSQL, Redis,
+Celery/Flower, RabbitMQ), raises alarms when threshold rules are triggered, and
+can act on containers.
 
-> Veriler ayrı bir repodaki Sentinel API'sinden gelir (FastAPI,
-> [`opsluh-api`](https://github.com/selamet/opsluh-api)). Giriş JWT ile
-> yapılır; uygulama açılışta filoyu ve alarmları çeker ve 15 sn'de bir yeniler.
-> API adresi `VITE_API_URL` ile ayarlanır (varsayılan `http://localhost:8000`).
-> Önce backend'i çalıştırın: `opsluh-api` reposunda `uvicorn app.main:app --reload`.
+> Data comes from the Sentinel API in a separate repository (FastAPI,
+> [`opsluh-api`](https://github.com/selamet/opsluh-api)). Sign-in uses JWT; on
+> startup the app fetches the fleet and alarms and refreshes them every 15s.
+> The API address is configured with `VITE_API_URL` (default `http://localhost:8000`).
+> Run the backend first: `uvicorn app.main:app --reload` in the `opsluh-api` repo.
 
-## Teknoloji
+## Tech
 
 - **React 18 + TypeScript + Vite**
-- **React Router** — sayfa yönlendirme
-- **Zustand** — canlı filo verisi ve overlay (toast/modal/terminal) state'i
-- **CSS değişkenleri** — `src/styles/global.css` içindeki design token'ları
-- Grafikler elle yazılmış SVG'dir (bağımlılık yok)
+- **React Router** — page routing
+- **Zustand** — live fleet data and overlay (toast/modal/terminal) state
+- **CSS variables** — design tokens in `src/styles/global.css`
+- Charts are hand-written SVG (no dependencies)
 
-## Komutlar
+## Commands
 
 ```bash
-npm install      # bağımlılıklar
-npm run dev      # geliştirme sunucusu (http://localhost:5173)
-npm run build    # tip kontrolü + prodüksiyon derlemesi
-npm run preview  # derlemeyi önizle
+npm install      # dependencies
+npm run dev      # dev server (http://localhost:5173)
+npm run build    # type-check + production build
+npm run preview  # preview the build
 npm run lint     # ESLint
 npm run format   # Prettier
 ```
 
-## Ekranlar
+## Screens
 
-| Rota                          | Ekran            | Açıklama                                            |
+| Route                         | Screen           | Description                                          |
 | ----------------------------- | ---------------- | --------------------------------------------------- |
-| `/`                           | Genel bakış      | Filo KPI'ları + uygulama kartları                   |
-| `/app/:id`                    | App detayı       | VM bilgisi, bağımlılık haritası, container tablosu  |
-| `/app/:id/container/:cid`     | Container detayı | Metrikler / loglar / inspect / health + aksiyonlar  |
-| `/alarms`                     | Alarmlar         | Seviye özeti + durum/seviye filtreleri              |
-| `/incident/:id`               | Olay detayı      | Zaman çizelgesi, runbook, ilgili alarmlar           |
-| `/add`                        | Uygulama ekle    | 3 adımlı kurulum sihirbazı                          |
-| `/settings`                   | Ayarlar          | Alarm kuralları, otomatik onarım, kanallar, genel   |
+| `/`                           | Overview         | Fleet KPIs + app cards                              |
+| `/app/:id`                    | App detail       | VM info, dependency map, container table            |
+| `/app/:id/container/:cid`     | Container detail | Metrics / logs / inspect / health + actions         |
+| `/alarms`                     | Alarms           | Severity summary + status/severity filters          |
+| `/incident/:id`               | Incident detail  | Timeline, runbook, related alarms                   |
+| `/add`                        | Add app          | 3-step setup wizard                                 |
+| `/settings`                   | Settings         | Alarm rules, auto-remediation, channels, general    |
 
-Global: sidebar, topbar (canlı göstergesi + bildirim zili), kritik alarm
-banner'ı, komut paleti (⌘K), toast/onay-modalı/terminal overlay'leri.
+Global: sidebar, topbar (live indicator + notification bell), critical-alarm
+banner, command palette (⌘K), toast/confirm-modal/terminal overlays.
 
-## Dizin Yapısı
+## Directory Structure
 
 ```
 src/
   components/
-    ui/        Paylaşılan primitifler (Icon, Card, Button, Sparkline, …)
+    ui/        Shared primitives (Icon, Card, Button, Sparkline, …)
     layout/    Sidebar, Topbar, CriticalBanner, AlarmDropdown
     overlays/  Toast host, ConfirmModal, TerminalModal, CommandPalette
     form/       Field, TextInput, Toggle
-    *.tsx       Özellik bileşenleri (AppCard, ContainerTable, DependencyMap, …)
-  api/         API istemcisi, uç noktalar, tipler ve adaptörler (map)
-  data/        UI meta verisi (servis / durum / severity renk & etiketleri)
-  lib/         Yardımcılar (health, series, routes, containerActions)
-  screens/     Sayfa bileşenleri (her rota için bir dosya + Login)
-  store/       Zustand store'ları (auth, fleet, alarms, overlay)
-  styles/      Design token'ları ve temel stiller
-  types.ts     Domain modeli
+    *.tsx       Feature components (AppCard, ContainerTable, DependencyMap, …)
+  api/         API client, endpoints, types and adapters (map)
+  data/        UI metadata (service / status / severity colors & labels)
+  lib/         Helpers (health, series, routes, containerActions)
+  screens/     Page components (one file per route + Login)
+  store/       Zustand stores (auth, fleet, alarms, overlay)
+  styles/      Design tokens and base styles
+  types.ts     Domain model
 ```
 
-## Tasarım Token'ları
+## Design Tokens
 
-Renkler, tipografi ve boşluklar `src/styles/global.css` içindeki CSS
-değişkenlerinde tek noktada tutulur. UI bileşenleri bu token'lara `var(--…)`
-ile başvurur — temayı değiştirmek için yalnızca bu dosyayı güncellemek yeterli.
+Colors, typography and spacing are kept in a single place as CSS variables in
+`src/styles/global.css`. UI components reference these tokens via `var(--…)` —
+to change the theme you only need to update this one file.
