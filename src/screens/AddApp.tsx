@@ -2,7 +2,11 @@ import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Field, TextInput, Toggle } from '@/components/form';
 import { Button, Card, Eyebrow, Icon, type IconName } from '@/components/ui';
+import { api } from '@/api/endpoints';
 import { paths } from '@/lib/routes';
+import { useFleet } from '@/store/fleet';
+import { useOverlay } from '@/store/overlay';
+import type { ApiError } from '@/api/client';
 import type { Environment } from '@/types';
 
 interface FormState {
@@ -22,7 +26,10 @@ const STEPS = ['Uygulama', 'VM bağlantısı', 'Docker & izleme'];
 /** Three-step wizard to register a new monitored app. */
 export function AddApp() {
   const navigate = useNavigate();
+  const refresh = useFleet((s) => s.refresh);
+  const toast = useOverlay((s) => s.toast);
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>({
     name: '',
     desc: '',
@@ -36,6 +43,29 @@ export function AddApp() {
   });
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await api.createApp({
+        name: form.name,
+        description: form.desc,
+        env: form.env,
+        vm: { instance: form.instance, zone: form.zone },
+        gcpProject: form.project,
+        authMethod: form.auth,
+        composePath: form.composePath,
+        collectInterval: Number(form.interval) || 30,
+      });
+      await refresh();
+      toast('Uygulama eklendi', { type: 'success', sub: form.name });
+      navigate(paths.overview());
+    } catch (e) {
+      toast('Uygulama eklenemedi', { type: 'error', sub: (e as ApiError).message });
+      setSaving(false);
+    }
+  };
 
   const authOptions: Array<[FormState['auth'], string, IconName]> = [
     ['sa', 'Service Account', 'shield'],
@@ -285,8 +315,8 @@ export function AddApp() {
               Devam
             </Button>
           ) : (
-            <Button variant="primary" icon="check" onClick={() => navigate(paths.overview())}>
-              Uygulamayı ekle
+            <Button variant="primary" icon="check" onClick={submit}>
+              {saving ? 'Ekleniyor…' : 'Uygulamayı ekle'}
             </Button>
           )}
         </div>
