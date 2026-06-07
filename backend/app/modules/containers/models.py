@@ -8,7 +8,7 @@ from app.core.database import Base, IdMixin, TimestampMixin
 from app.modules.apps.models import App
 
 
-class ServiceType(str, enum.Enum):
+class ServiceType(enum.StrEnum):
     fastapi = "fastapi"
     django = "django"
     nginx = "nginx"
@@ -20,31 +20,31 @@ class ServiceType(str, enum.Enum):
     gunicorn = "gunicorn"
 
 
-class ContainerStatus(str, enum.Enum):
+class ContainerStatus(enum.StrEnum):
     running = "running"
     restarting = "restarting"
     exited = "exited"
     paused = "paused"
 
 
-class ContainerHealth(str, enum.Enum):
+class ContainerHealth(enum.StrEnum):
     healthy = "healthy"
     unhealthy = "unhealthy"
 
 
-class ActionKind(str, enum.Enum):
+class ActionKind(enum.StrEnum):
     restart = "restart"
     stop = "stop"
     start = "start"
 
 
-class ActionStatus(str, enum.Enum):
+class ActionStatus(enum.StrEnum):
     pending = "pending"
     success = "success"
     failed = "failed"
 
 
-class LogLevel(str, enum.Enum):
+class LogLevel(enum.StrEnum):
     info = "info"
     warn = "warn"
     error = "error"

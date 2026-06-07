@@ -7,7 +7,7 @@ dashboard has realistic data to render. Safe to skip if apps already exist.
 
 import asyncio
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
@@ -21,7 +21,7 @@ from app.modules.metrics.models import MetricSample
 from app.modules.notifications.models import ChannelType, NotificationChannel
 from app.modules.rules.models import AlarmRule, RemediationRule
 
-ADMIN_EMAIL = "admin@sentinel.local"
+ADMIN_EMAIL = "admin@sentinel.dev"
 ADMIN_PASSWORD = "changeme123"
 
 APPS = [
@@ -177,7 +177,7 @@ async def seed() -> None:
             for container in app.containers:
                 containers_by_name[container.name] = container
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for container in containers_by_name.values():
             if container.status == ContainerStatus.exited:
                 continue

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,7 @@ async def ingest_sample(db: AsyncSession, container_id: str, payload: MetricInge
         cpu=payload.cpu,
         mem_pct=payload.mem_pct,
         net=payload.net,
-        recorded_at=payload.recorded_at or datetime.now(timezone.utc),
+        recorded_at=payload.recorded_at or datetime.now(UTC),
     )
     db.add(sample)
     await db.commit()

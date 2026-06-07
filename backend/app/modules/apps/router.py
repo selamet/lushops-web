@@ -35,6 +35,10 @@ async def update_app(app_id: str, payload: AppUpdate, db: DbSession):
     return await service.update_app(db, app_id, payload)
 
 
-@router.delete("/{app_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_roles(UserRole.admin))])
+@router.delete(
+    "/{app_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_roles(UserRole.admin))],
+)
 async def delete_app(app_id: str, db: DbSession):
     await service.delete_app(db, app_id)

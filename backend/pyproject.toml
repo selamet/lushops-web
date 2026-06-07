@@ -19,11 +19,15 @@ dependencies = [
 ]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/seed.py" = ["E501"]
+"alembic/versions/*" = ["E501"]
 
 [build-system]
 requires = ["hatchling"]

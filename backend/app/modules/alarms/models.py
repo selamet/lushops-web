@@ -7,13 +7,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base, IdMixin, TimestampMixin
 
 
-class Severity(str, enum.Enum):
+class Severity(enum.StrEnum):
     critical = "critical"
     warning = "warning"
     info = "info"
 
 
-class AlarmState(str, enum.Enum):
+class AlarmState(enum.StrEnum):
     active = "active"
     acknowledged = "acknowledged"
     resolved = "resolved"

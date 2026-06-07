@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,7 +76,7 @@ async def ingest_log(db: AsyncSession, container_id: str, payload: LogIngest) ->
         container_id=container_id,
         level=payload.level,
         message=payload.message,
-        recorded_at=payload.recorded_at or datetime.now(timezone.utc),
+        recorded_at=payload.recorded_at or datetime.now(UTC),
     )
     db.add(entry)
     await db.commit()

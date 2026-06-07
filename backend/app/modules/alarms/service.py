@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from app.modules.apps.service import get_app
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 async def create_alarm(db: AsyncSession, payload: AlarmCreate) -> Alarm:
@@ -27,7 +27,12 @@ async def create_alarm(db: AsyncSession, payload: AlarmCreate) -> Alarm:
         triggered_at=triggered_at,
     )
     alarm.events.append(
-        TimelineEvent(kind="trigger", title="Alarm triggered", detail=f"Rule matched: {payload.rule}", occurred_at=triggered_at)
+        TimelineEvent(
+            kind="trigger",
+            title="Alarm triggered",
+            detail=f"Rule matched: {payload.rule}",
+            occurred_at=triggered_at,
+        )
     )
     db.add(alarm)
     await db.commit()

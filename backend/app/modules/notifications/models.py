@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base, IdMixin, TimestampMixin
 
 
-class ChannelType(str, enum.Enum):
+class ChannelType(enum.StrEnum):
     slack = "slack"
     email = "email"
     telegram = "telegram"

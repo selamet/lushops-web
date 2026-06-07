@@ -10,19 +10,19 @@ if TYPE_CHECKING:
     from app.modules.containers.models import Container
 
 
-class Environment(str, enum.Enum):
+class Environment(enum.StrEnum):
     prod = "prod"
     staging = "staging"
     dev = "dev"
 
 
-class AppHealth(str, enum.Enum):
+class AppHealth(enum.StrEnum):
     ok = "ok"
     warn = "warn"
     crit = "crit"
 
 
-class AuthMethod(str, enum.Enum):
+class AuthMethod(enum.StrEnum):
     sa = "sa"
     ssh = "ssh"
     iap = "iap"
