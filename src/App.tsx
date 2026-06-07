@@ -6,12 +6,14 @@ import { CriticalBanner, Sidebar, Topbar } from '@/components/layout';
 import { ALARMS } from '@/data/alarms';
 import { useFleet } from '@/store/fleet';
 import type { App as AppModel } from '@/types';
+import { AddApp } from '@/screens/AddApp';
 import { Alarms } from '@/screens/Alarms';
 import { AppDetail } from '@/screens/AppDetail';
 import { ContainerDetail } from '@/screens/ContainerDetail';
 import { IncidentDetail } from '@/screens/IncidentDetail';
+import { NotFound } from '@/screens/NotFound';
 import { Overview } from '@/screens/Overview';
-import { Placeholder } from '@/screens/Placeholder';
+import { Settings } from '@/screens/Settings';
 
 const TICK_MS = 2200;
 
@@ -96,9 +98,9 @@ export function App() {
               <Route path="/app/:id/container/:cid" element={<ContainerDetail />} />
               <Route path="/alarms" element={<Alarms />} />
               <Route path="/incident/:id" element={<IncidentDetail />} />
-              <Route path="/add" element={<Placeholder title="Uygulama ekle" />} />
-              <Route path="/settings" element={<Placeholder title="Ayarlar" />} />
-              <Route path="*" element={<Placeholder title="Sayfa bulunamadı" />} />
+              <Route path="/add" element={<AddApp />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
         </main>
