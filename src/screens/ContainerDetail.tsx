@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { LogViewer } from '@/components/LogViewer';
 import {
@@ -14,12 +14,12 @@ import {
   type IconName,
 } from '@/components/ui';
 import { STATUS } from '@/data/services';
-import { genLogs } from '@/data/logs';
+import { api } from '@/api/endpoints';
 import { containerAction } from '@/lib/containerActions';
 import { paths } from '@/lib/routes';
 import { useOverlay } from '@/store/overlay';
 import { useFleet } from '@/store/fleet';
-import type { App, Container } from '@/types';
+import type { App, Container, LogLine } from '@/types';
 
 type Tab = 'metrics' | 'logs' | 'inspect' | 'health';
 
@@ -34,11 +34,35 @@ export function ContainerDetail() {
 
   const app = apps.find((a) => a.id === id);
   const c = app?.containers.find((x) => x.id === cid);
-  const logs = useMemo(() => (c ? genLogs(c) : []), [c?.id, c?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [logs, setLogs] = useState<LogLine[]>([]);
+  const [realSeries, setRealSeries] = useState<{ cpu: number[]; mem: number[]; net: number[] } | null>(null);
+
+  useEffect(() => {
+    if (!cid) return;
+    setRealSeries(null);
+    api
+      .listLogs(cid)
+      .then((rows) =>
+        setLogs(
+          rows.map((r) => ({ lvl: r.level, t: new Date(r.recordedAt).toTimeString().slice(0, 8), m: r.message })),
+        ),
+      )
+      .catch(() => setLogs([]));
+    api
+      .listMetrics(cid, 40)
+      .then((rows) => {
+        if (rows.length)
+          setRealSeries({ cpu: rows.map((s) => s.cpu), mem: rows.map((s) => s.memPct), net: rows.map((s) => s.net) });
+      })
+      .catch(() => undefined);
+  }, [cid]);
 
   if (!loaded) return null;
   if (!app || !c) return <Navigate to={paths.overview()} replace />;
 
+  const view: Container = realSeries
+    ? { ...c, cpuSeries: realSeries.cpu, memSeries: realSeries.mem, netSeries: realSeries.net }
+    : c;
   const statusColor = STATUS[c.status]?.color;
   const exited = c.status === 'exited';
 
@@ -138,9 +162,9 @@ export function ContainerDetail() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        <StatTile icon="cpu" label="CPU" value={exited ? '—' : c.cpu + '%'} series={c.cpuSeries} color={statusColor} sub="limit: 2 vCPU" dim={exited} />
-        <StatTile icon="mem" label="Bellek" value={exited ? '—' : c.mem + ' MB'} series={c.memSeries} color="var(--acc)" sub={`limit: ${c.memLimit} MB · %${c.memPct}`} dim={exited} />
-        <StatTile icon="net" label="Network I/O" value={exited ? '—' : c.net + ' MB/s'} series={c.netSeries} color="var(--info)" sub="↑↓ toplam" dim={exited} />
+        <StatTile icon="cpu" label="CPU" value={exited ? '—' : c.cpu + '%'} series={view.cpuSeries} color={statusColor} sub="limit: 2 vCPU" dim={exited} />
+        <StatTile icon="mem" label="Bellek" value={exited ? '—' : c.mem + ' MB'} series={view.memSeries} color="var(--acc)" sub={`limit: ${c.memLimit} MB · %${c.memPct}`} dim={exited} />
+        <StatTile icon="net" label="Network I/O" value={exited ? '—' : c.net + ' MB/s'} series={view.netSeries} color="var(--info)" sub="↑↓ toplam" dim={exited} />
         <StatTile icon="clock" label="Uptime" value={c.uptime} color="var(--tx-1)" plain sub={`${c.restarts} restart`} dim={exited} />
       </div>
 
@@ -168,7 +192,7 @@ export function ContainerDetail() {
         ))}
       </div>
 
-      {tab === 'metrics' && <MetricsTab c={c} statusColor={statusColor} />}
+      {tab === 'metrics' && <MetricsTab c={view} statusColor={statusColor} />}
       {tab === 'logs' && <LogViewer logs={logs} />}
       {tab === 'inspect' && <InspectTab c={c} app={app} />}
       {tab === 'health' && <HealthTab c={c} />}

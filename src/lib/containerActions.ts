@@ -1,4 +1,7 @@
+import { api } from '@/api/endpoints';
+import { useFleet } from '@/store/fleet';
 import { useOverlay } from '@/store/overlay';
+import type { ApiError } from '@/api/client';
 import type { IconName } from '@/components/ui';
 import type { Container } from '@/types';
 import type { ToastType } from '@/store/overlay';
@@ -62,6 +65,14 @@ export function containerAction(c: Container, action: ActionKind): void {
     confirmIcon: cfg.confirmIcon,
     icon: cfg.icon,
     danger: cfg.danger,
-    onConfirm: () => toast(`${c.name} · ${cfg.toast}`, { type: cfg.type, sub: cfg.cmd }),
+    onConfirm: async () => {
+      try {
+        await api.runAction(c.id, action);
+        toast(`${c.name} · ${cfg.toast}`, { type: cfg.type, sub: cfg.cmd });
+        useFleet.getState().refresh();
+      } catch (e) {
+        toast(`${c.name} · işlem başarısız`, { type: 'error', sub: (e as ApiError).message });
+      }
+    },
   });
 }
