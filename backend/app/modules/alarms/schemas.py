@@ -39,6 +39,7 @@ class AlarmOut(CamelModel):
     title: str
     detail: str
     rule: str
+    auto: bool
     triggered_at: datetime
     acknowledged_at: datetime | None
     resolved_at: datetime | None

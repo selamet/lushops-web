@@ -11,6 +11,7 @@ from app.modules.alarms.router import router as alarms_router
 from app.modules.apps.router import router as apps_router
 from app.modules.auth.router import router as auth_router
 from app.modules.containers.router import router as containers_router
+from app.modules.engine.router import router as engine_router
 from app.modules.metrics.router import router as metrics_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.rules.router import router as rules_router
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(rules_router)
     app.include_router(notifications_router)
     app.include_router(settings_router)
+    app.include_router(engine_router)
 
     return app
 

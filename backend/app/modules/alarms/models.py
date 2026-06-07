@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base, IdMixin, TimestampMixin
@@ -31,6 +31,7 @@ class Alarm(IdMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(200))
     detail: Mapped[str] = mapped_column(Text, default="")
     rule: Mapped[str] = mapped_column(String(120))
+    auto: Mapped[bool] = mapped_column(Boolean, default=False)
 
     triggered_at: Mapped[datetime] = mapped_column("triggeredAt", DateTime(timezone=True))
     acknowledged_at: Mapped[datetime | None] = mapped_column("acknowledgedAt", DateTime(timezone=True), default=None)
