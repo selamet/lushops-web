@@ -5,10 +5,11 @@ Nginx, PostgreSQL, Redis, Celery/Flower, RabbitMQ) izleyen, eşik kuralları
 tetiklendiğinde alarm üreten ve container'lara müdahale ettirebilen operasyon
 panosunun web arayüzü.
 
-> Veriler `backend/` içindeki Sentinel API'sinden gelir (FastAPI). Giriş JWT ile
+> Veriler ayrı bir repodaki Sentinel API'sinden gelir (FastAPI,
+> [`opsluh-api`](https://github.com/selamet/opsluh-api)). Giriş JWT ile
 > yapılır; uygulama açılışta filoyu ve alarmları çeker ve 15 sn'de bir yeniler.
 > API adresi `VITE_API_URL` ile ayarlanır (varsayılan `http://localhost:8000`).
-> Önce backend'i çalıştırın: `cd backend && uvicorn app.main:app --reload`.
+> Önce backend'i çalıştırın: `opsluh-api` reposunda `uvicorn app.main:app --reload`.
 
 ## Teknoloji
 
