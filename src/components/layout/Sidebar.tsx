@@ -2,7 +2,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Button, Eyebrow, Icon, StatusDot, type IconName } from '@/components/ui';
 import { appHealthColor } from '@/lib/health';
 import { paths } from '@/lib/routes';
+import { useAuth } from '@/store/auth';
 import type { App } from '@/types';
+
+/** Two-letter initials from a display name. */
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 interface SidebarProps {
   apps: App[];
@@ -20,6 +31,8 @@ interface NavItem {
 export function Sidebar({ apps, activeAlarmCount }: SidebarProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const user = useAuth((s) => s.user);
+  const logout = useAuth((s) => s.logout);
 
   const nav: NavItem[] = [
     { to: paths.overview(), label: 'Genel bakış', icon: 'grid' },
@@ -203,7 +216,7 @@ export function Sidebar({ apps, activeAlarmCount }: SidebarProps) {
               color: '#04140d',
             }}
           >
-            EK
+            {user ? initials(user.fullName) : '–'}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -215,11 +228,13 @@ export function Sidebar({ apps, activeAlarmCount }: SidebarProps) {
                 whiteSpace: 'nowrap',
               }}
             >
-              Emre K.
+              {user?.fullName ?? '—'}
             </div>
-            <div style={{ fontSize: 10.5, color: 'var(--tx-3)' }}>acme-eng</div>
+            <div style={{ fontSize: 10.5, color: 'var(--tx-3)' }}>{user?.role ?? ''}</div>
           </div>
-          <StatusDot color="var(--ok)" size={7} glow="rgba(52,211,153,0.0)" pulse />
+          <button onClick={logout} title="Çıkış yap" style={{ color: 'var(--tx-3)', display: 'grid', placeItems: 'center' }}>
+            <Icon name="external" size={16} />
+          </button>
         </div>
       </div>
     </aside>
