@@ -11,6 +11,7 @@ from app.modules.alarms.models import Alarm, TimelineEvent
 from app.modules.metrics.models import MetricSample
 from app.modules.notifications.models import NotificationChannel
 from app.modules.rules.models import AlarmRule, RemediationRule
+from app.modules.settings.models import Setting
 
 __all__ = [
     "Base",
@@ -25,4 +26,5 @@ __all__ = [
     "AlarmRule",
     "RemediationRule",
     "NotificationChannel",
+    "Setting",
 ]
