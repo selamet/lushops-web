@@ -7,6 +7,7 @@ from slowapi.util import get_remote_address
 from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import SecurityHeadersMiddleware
+from app.modules.apps.router import router as apps_router
 from app.modules.auth.router import router as auth_router
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit])
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(auth_router)
+    app.include_router(apps_router)
 
     return app
 

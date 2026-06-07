@@ -42,12 +42,15 @@ def _envelope(code: str, message: str, details: list) -> dict:
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError):
-        return JSONResponse(exc.status_code, content=_envelope(exc.code, exc.message, exc.details))
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_envelope(exc.code, exc.message, exc.details),
+        )
 
     @app.exception_handler(RequestValidationError)
     async def handle_validation_error(_: Request, exc: RequestValidationError):
         details = [{"field": ".".join(map(str, e["loc"])), "message": e["msg"]} for e in exc.errors()]
         return JSONResponse(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content=_envelope("VALIDATION_ERROR", "Request validation failed", details),
         )
