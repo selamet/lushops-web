@@ -16,6 +16,8 @@ interface Kpi {
 /** Fleet-wide health at a glance: KPI row plus the app card grid. */
 export function Overview() {
   const apps = useFleet((s) => s.apps);
+  const loaded = useFleet((s) => s.loaded);
+  const error = useFleet((s) => s.error);
   const refreshFleet = useFleet((s) => s.refresh);
   const alarms = useAlarms((s) => s.alarms);
   const refreshAlarms = useAlarms((s) => s.refresh);
@@ -76,6 +78,16 @@ export function Overview() {
     },
   ];
 
+  if (!loaded) return <Centered>Filo yükleniyor…</Centered>;
+  if (error)
+    return (
+      <Centered>
+        <Icon name="alert" size={26} color="var(--crit)" />
+        <div style={{ marginTop: 8 }}>Filo yüklenemedi</div>
+        <div style={{ fontSize: 12, color: 'var(--tx-3)', marginTop: 4 }}>{error}</div>
+      </Centered>
+    );
+
   return (
     <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
@@ -135,17 +147,38 @@ export function Overview() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
-          gap: 14,
-        }}
-      >
-        {apps.map((app) => (
-          <AppCard key={app.id} app={app} />
-        ))}
-      </div>
+      {apps.length === 0 ? (
+        <Card pad={40}>
+          <div style={{ textAlign: 'center', color: 'var(--tx-3)' }}>
+            <Icon name="layers" size={26} color="var(--tx-3)" />
+            <div style={{ marginTop: 8, color: 'var(--tx-2)' }}>Henüz izlenen uygulama yok</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Soldaki “Uygulama ekle” ile ilk uygulamanı bağla.</div>
+          </div>
+        </Card>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+            gap: 14,
+          }}
+        >
+          {apps.map((app) => (
+            <AppCard key={app.id} app={app} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Centered({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="fade-up"
+      style={{ display: 'grid', placeItems: 'center', minHeight: 300, color: 'var(--tx-2)', textAlign: 'center' }}
+    >
+      <div>{children}</div>
     </div>
   );
 }
