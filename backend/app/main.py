@@ -1,3 +1,8 @@
+import asyncio
+import contextlib
+import logging
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -5,12 +10,14 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.core.config import settings
+from app.core.database import session_factory
 from app.core.exceptions import register_exception_handlers
 from app.core.middleware import SecurityHeadersMiddleware
 from app.modules.alarms.router import router as alarms_router
 from app.modules.apps.router import router as apps_router
 from app.modules.auth.router import router as auth_router
 from app.modules.containers.router import router as containers_router
+from app.modules.engine import service as engine_service
 from app.modules.engine.router import router as engine_router
 from app.modules.metrics.router import router as metrics_router
 from app.modules.notifications.router import router as notifications_router
@@ -18,10 +25,35 @@ from app.modules.rules.router import router as rules_router
 from app.modules.settings.router import router as settings_router
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit])
+logger = logging.getLogger("sentinel.engine")
+
+
+async def _engine_loop() -> None:
+    while True:
+        await asyncio.sleep(settings.engine_interval)
+        try:
+            async with session_factory() as db:
+                result = await engine_service.run_cycle(db)
+            if any(result.values()):
+                logger.info("engine cycle %s", result)
+        except Exception:
+            logger.exception("engine cycle failed")
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    task = asyncio.create_task(_engine_loop()) if settings.engine_enabled else None
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.app_name, version="0.1.0")
+    app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

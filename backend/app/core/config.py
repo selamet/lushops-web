@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     rate_limit: str = "120/minute"
     auth_rate_limit: str = "10/minute"
 
+    engine_enabled: bool = True
+    engine_interval: int = 30
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_origins(cls, value):
