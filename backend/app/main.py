@@ -10,6 +10,7 @@ from app.core.middleware import SecurityHeadersMiddleware
 from app.modules.apps.router import router as apps_router
 from app.modules.auth.router import router as auth_router
 from app.modules.containers.router import router as containers_router
+from app.modules.alarms.router import router as alarms_router
 from app.modules.metrics.router import router as metrics_router
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit])
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(apps_router)
     app.include_router(containers_router)
     app.include_router(metrics_router)
+    app.include_router(alarms_router)
 
     return app
 
