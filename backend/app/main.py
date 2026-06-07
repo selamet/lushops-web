@@ -23,31 +23,37 @@ from app.modules.metrics.router import router as metrics_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.rules.router import router as rules_router
 from app.modules.settings.router import router as settings_router
+from app.modules.simulator import service as simulator_service
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit])
 logger = logging.getLogger("sentinel.engine")
 
 
-async def _engine_loop() -> None:
+async def _periodic(interval: int, runner, label: str) -> None:
     while True:
-        await asyncio.sleep(settings.engine_interval)
+        await asyncio.sleep(interval)
         try:
             async with session_factory() as db:
-                result = await engine_service.run_cycle(db)
+                result = await runner(db)
             if any(result.values()):
-                logger.info("engine cycle %s", result)
+                logger.info("%s %s", label, result)
         except Exception:
-            logger.exception("engine cycle failed")
+            logger.exception("%s failed", label)
 
 
 @contextlib.asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    task = asyncio.create_task(_engine_loop()) if settings.engine_enabled else None
+    tasks: list[asyncio.Task] = []
+    if settings.simulator_enabled:
+        tasks.append(asyncio.create_task(_periodic(settings.simulator_interval, simulator_service.tick, "simulator")))
+    if settings.engine_enabled:
+        tasks.append(asyncio.create_task(_periodic(settings.engine_interval, engine_service.run_cycle, "engine")))
     try:
         yield
     finally:
-        if task:
+        for task in tasks:
             task.cancel()
+        for task in tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
 

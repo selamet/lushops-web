@@ -7,6 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base, IdMixin, TimestampMixin
 from app.modules.apps.models import App
 
+# Exit reason set by an operator-initiated stop; the engine won't auto-restart these.
+OPERATOR_STOP_REASON = "Stopped by operator"
+
 
 class ServiceType(enum.StrEnum):
     fastapi = "fastapi"

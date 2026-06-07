@@ -11,7 +11,14 @@ from sqlalchemy.orm import selectinload
 
 from app.modules.alarms.models import Alarm, AlarmState, Severity, TimelineEvent
 from app.modules.apps.models import App, AppHealth
-from app.modules.containers.models import Container, ContainerHealth, ContainerStatus
+from app.modules.containers.models import (
+    OPERATOR_STOP_REASON,
+    ActionKind,
+    Container,
+    ContainerAction,
+    ContainerHealth,
+    ContainerStatus,
+)
 from app.modules.rules.models import AlarmRule, RemediationRule
 
 _NUMERIC = {"cpu", "restarts", "memory"}
@@ -177,6 +184,18 @@ async def run_cycle(db: AsyncSession) -> dict:
                             occurred_at=now,
                         )
                     )
+                    # lifecycle conditions are recoverable by a restart; the executor
+                    # applies it and the alarm auto-resolves on the next cycle. Operator
+                    # stops are intentional, so leave them down.
+                    recoverable = key[1] in ("status", "restarts", "healthcheck")
+                    if recoverable and container.exit_reason != OPERATOR_STOP_REASON:
+                        db.add(
+                            ContainerAction(
+                                container_id=container.id,
+                                action=ActionKind.restart,
+                                command=remediation.command,
+                            )
+                        )
                     remediated += 1
                 db.add(alarm)
                 active_by_key[key] = alarm

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     engine_enabled: bool = True
     engine_interval: int = 30
 
+    simulator_enabled: bool = True
+    simulator_interval: int = 5
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_origins(cls, value):
