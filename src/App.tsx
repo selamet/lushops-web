@@ -6,6 +6,7 @@ import { CriticalBanner, Sidebar, Topbar } from '@/components/layout';
 import { ALARMS } from '@/data/alarms';
 import { useFleet } from '@/store/fleet';
 import type { App as AppModel } from '@/types';
+import { Overview } from '@/screens/Overview';
 import { Placeholder } from '@/screens/Placeholder';
 
 const TICK_MS = 2200;
@@ -86,7 +87,7 @@ export function App() {
         <main ref={mainRef} style={{ flex: 1, overflow: 'auto', padding: '26px' }}>
           <div style={{ maxWidth: 1320, margin: '0 auto' }}>
             <Routes>
-              <Route path="/" element={<Placeholder title="Genel bakış" />} />
+              <Route path="/" element={<Overview />} />
               <Route path="/app/:id" element={<Placeholder title="Uygulama detayı" />} />
               <Route
                 path="/app/:id/container/:cid"

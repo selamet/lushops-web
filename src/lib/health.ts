@@ -10,6 +10,25 @@ export function appHealthLabel(h: AppHealth): string {
   return h === 'crit' ? 'Kritik' : h === 'warn' ? 'Dikkat' : 'Sağlıklı';
 }
 
+/** Soft background token for an app's health. */
+export function appHealthSoft(h: AppHealth): string {
+  return h === 'crit' ? 'var(--crit-soft)' : h === 'warn' ? 'var(--warn-soft)' : 'var(--ok-soft)';
+}
+
+/** Border token for an app's health. */
+export function appHealthLine(h: AppHealth): string {
+  return h === 'crit' ? 'var(--crit-line)' : h === 'warn' ? 'var(--warn-line)' : 'var(--ok-line)';
+}
+
+/** Pulse glow color for an app's health (used by StatusDot). */
+export function appHealthGlow(h: AppHealth): string {
+  return h === 'crit'
+    ? 'rgba(245,85,109,0.5)'
+    : h === 'warn'
+      ? 'rgba(251,191,36,0.5)'
+      : 'rgba(52,211,153,0.5)';
+}
+
 export interface StatusCounts {
   running: number;
   restarting: number;
