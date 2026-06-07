@@ -9,6 +9,7 @@ from app.modules.auth.models import User
 from app.modules.containers.models import Container, ContainerAction, LogEntry
 from app.modules.alarms.models import Alarm, TimelineEvent
 from app.modules.metrics.models import MetricSample
+from app.modules.notifications.models import NotificationChannel
 from app.modules.rules.models import AlarmRule, RemediationRule
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     "TimelineEvent",
     "AlarmRule",
     "RemediationRule",
+    "NotificationChannel",
 ]
