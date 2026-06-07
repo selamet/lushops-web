@@ -6,10 +6,10 @@ Celery/Flower, RabbitMQ), raises alarms when threshold rules are triggered, and
 can act on containers.
 
 > Data comes from the Sentinel API in a separate repository (FastAPI,
-> [`opsluh-api`](https://github.com/selamet/opsluh-api)). Sign-in uses JWT; on
+> [`lushops-api`](https://github.com/selamet/lushops-api)). Sign-in uses JWT; on
 > startup the app fetches the fleet and alarms and refreshes them every 15s.
 > The API address is configured with `VITE_API_URL` (default `http://localhost:8000`).
-> Run the backend first: `uvicorn app.main:app --reload` in the `opsluh-api` repo.
+> Run the backend first: `uvicorn app.main:app --reload` in the `lushops-api` repo.
 
 ## Tech
 
