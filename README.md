@@ -5,9 +5,10 @@ Nginx, PostgreSQL, Redis, Celery/Flower, RabbitMQ) izleyen, eşik kuralları
 tetiklendiğinde alarm üreten ve container'lara müdahale ettirebilen operasyon
 panosunun web arayüzü.
 
-> Veriler şu an mock'tur (`src/data`). Canlı metrikler `src/store/fleet.ts`
-> içindeki simülasyonla üretilir; prodüksiyonda WebSocket/polling ile gerçek
-> API'ye bağlanır.
+> Veriler `backend/` içindeki Sentinel API'sinden gelir (FastAPI). Giriş JWT ile
+> yapılır; uygulama açılışta filoyu ve alarmları çeker ve 15 sn'de bir yeniler.
+> API adresi `VITE_API_URL` ile ayarlanır (varsayılan `http://localhost:8000`).
+> Önce backend'i çalıştırın: `cd backend && uvicorn app.main:app --reload`.
 
 ## Teknoloji
 
@@ -53,10 +54,11 @@ src/
     overlays/  Toast host, ConfirmModal, TerminalModal, CommandPalette
     form/       Field, TextInput, Toggle
     *.tsx       Özellik bileşenleri (AppCard, ContainerTable, DependencyMap, …)
-  data/        Mock veri ve şema (apps, alarms, logs, services)
+  api/         API istemcisi, uç noktalar, tipler ve adaptörler (map)
+  data/        UI meta verisi (servis / durum / severity renk & etiketleri)
   lib/         Yardımcılar (health, series, routes, containerActions)
-  screens/     Sayfa bileşenleri (her rota için bir dosya)
-  store/       Zustand store'ları (fleet, overlay)
+  screens/     Sayfa bileşenleri (her rota için bir dosya + Login)
+  store/       Zustand store'ları (auth, fleet, alarms, overlay)
   styles/      Design token'ları ve temel stiller
   types.ts     Domain modeli
 ```
