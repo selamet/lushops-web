@@ -21,6 +21,7 @@ export const ICONS = {
   check: 'M20 6 9 17l-5-5',
   x: 'M18 6 6 18M6 6l12 12',
   restart: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 4v4h4',
+  alert: 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
   terminal: 'M4 17l6-6-6-6M12 19h8',
   filter: 'M22 3H2l8 9.5V19l4 2v-8.5z',
   pause: 'M10 4H6v16h4zM18 4h-4v16h4z',
