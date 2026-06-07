@@ -40,21 +40,26 @@ export function ContainerDetail() {
   useEffect(() => {
     if (!cid) return;
     setRealSeries(null);
-    api
-      .listLogs(cid)
-      .then((rows) =>
-        setLogs(
-          rows.map((r) => ({ lvl: r.level, t: new Date(r.recordedAt).toTimeString().slice(0, 8), m: r.message })),
-        ),
-      )
-      .catch(() => setLogs([]));
-    api
-      .listMetrics(cid, 40)
-      .then((rows) => {
-        if (rows.length)
-          setRealSeries({ cpu: rows.map((s) => s.cpu), mem: rows.map((s) => s.memPct), net: rows.map((s) => s.net) });
-      })
-      .catch(() => undefined);
+    const load = () => {
+      api
+        .listLogs(cid)
+        .then((rows) =>
+          setLogs(
+            rows.map((r) => ({ lvl: r.level, t: new Date(r.recordedAt).toTimeString().slice(0, 8), m: r.message })),
+          ),
+        )
+        .catch(() => undefined);
+      api
+        .listMetrics(cid, 40)
+        .then((rows) => {
+          if (rows.length)
+            setRealSeries({ cpu: rows.map((s) => s.cpu), mem: rows.map((s) => s.memPct), net: rows.map((s) => s.net) });
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const timer = setInterval(load, 5000);
+    return () => clearInterval(timer);
   }, [cid]);
 
   if (!loaded) return null;
