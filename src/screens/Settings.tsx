@@ -1,38 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AutoRemediation } from '@/components/AutoRemediation';
 import { Field, TextInput, Toggle } from '@/components/form';
 import { Badge, Button, Card, Eyebrow, Icon, type IconName } from '@/components/ui';
 import { SEV } from '@/data/services';
-import type { Severity } from '@/types';
+import { api } from '@/api/endpoints';
+import { useOverlay } from '@/store/overlay';
+import type { ApiAlarmRule, ApiChannel, ApiSettings } from '@/api/types';
 
 type Tab = 'rules' | 'automation' | 'channels' | 'general';
-
-interface AlarmRule {
-  id: string;
-  metric: string;
-  op: string;
-  val: string;
-  sev: Severity;
-  on: boolean;
-}
-
-const INITIAL_RULES: AlarmRule[] = [
-  { id: 'r1', metric: 'status', op: '==', val: 'exited', sev: 'critical', on: true },
-  { id: 'r2', metric: 'restarts', op: '>', val: '5 / 10dk', sev: 'critical', on: true },
-  { id: 'r3', metric: 'cpu', op: '>', val: '80% / 5dk', sev: 'warning', on: true },
-  { id: 'r4', metric: 'memory', op: '>', val: '90%', sev: 'warning', on: true },
-  { id: 'r5', metric: 'healthcheck', op: '==', val: 'fail', sev: 'warning', on: true },
-  { id: 'r6', metric: 'disk', op: '>', val: '85%', sev: 'warning', on: false },
-];
 
 const RULE_COLS = '40px 1.4fr 0.6fr 1.2fr 1fr 50px';
 
 /** Settings: alarm rules, auto-remediation, notification channels and general options. */
 export function Settings() {
   const [tab, setTab] = useState<Tab>('rules');
-  const [rules, setRules] = useState(INITIAL_RULES);
-  const toggleRule = (id: string) =>
-    setRules((rs) => rs.map((r) => (r.id === id ? { ...r, on: !r.on } : r)));
 
   const tabs: Array<[Tab, string, IconName]> = [
     ['rules', 'Alarm kuralları', 'alert'],
@@ -71,91 +52,137 @@ export function Settings() {
         ))}
       </div>
 
-      {tab === 'rules' && (
-        <Card pad={0} style={{ overflow: 'hidden' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: RULE_COLS,
-              columnGap: 14,
-              padding: '11px 18px',
-              borderBottom: '1px solid var(--line)',
-              background: 'var(--bg-1)',
-            }}
-          >
-            {['', 'Metrik', 'Op', 'Eşik', 'Seviye', ''].map((h, i) => (
-              <div
-                key={i}
-                className="mono"
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: 'var(--tx-3)',
-                }}
-              >
-                {h}
-              </div>
-            ))}
-          </div>
-          {rules.map((r, i) => (
-            <div
-              key={r.id}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: RULE_COLS,
-                columnGap: 14,
-                alignItems: 'center',
-                padding: '13px 18px',
-                borderBottom: i === rules.length - 1 ? 'none' : '1px solid var(--line)',
-                opacity: r.on ? 1 : 0.5,
-              }}
-            >
-              <Toggle on={r.on} onClick={() => toggleRule(r.id)} />
-              <span className="mono" style={{ fontSize: 13, color: 'var(--tx-0)', fontWeight: 600 }}>
-                {r.metric}
-              </span>
-              <span className="mono" style={{ fontSize: 13, color: 'var(--acc-2)' }}>
-                {r.op}
-              </span>
-              <span className="mono" style={{ fontSize: 13, color: 'var(--tx-1)' }}>
-                {r.val}
-              </span>
-              <div>
-                <Badge color={SEV[r.sev].color} bg={SEV[r.sev].soft} line={SEV[r.sev].line}>
-                  {SEV[r.sev].label}
-                </Badge>
-              </div>
-              <button style={{ color: 'var(--tx-3)', justifySelf: 'end' }}>
-                <Icon name="trash" size={15} />
-              </button>
-            </div>
-          ))}
-          <div style={{ padding: 14, borderTop: '1px solid var(--line)' }}>
-            <Button variant="soft" icon="plus" size="sm">
-              Kural ekle
-            </Button>
-          </div>
-        </Card>
-      )}
-
+      {tab === 'rules' && <RulesTab />}
       {tab === 'automation' && <AutoRemediation />}
-
       {tab === 'channels' && <ChannelsTab />}
-
       {tab === 'general' && <GeneralTab />}
     </div>
   );
 }
 
+function RulesTab() {
+  const toast = useOverlay((s) => s.toast);
+  const [rules, setRules] = useState<ApiAlarmRule[]>([]);
+
+  useEffect(() => {
+    api.listAlarmRules().then(setRules).catch(() => undefined);
+  }, []);
+
+  const toggleRule = async (rule: ApiAlarmRule) => {
+    const updated = await api.updateAlarmRule(rule.id, { enabled: !rule.enabled });
+    setRules((rs) => rs.map((r) => (r.id === updated.id ? updated : r)));
+  };
+
+  const removeRule = async (id: string) => {
+    await api.deleteAlarmRule(id);
+    setRules((rs) => rs.filter((r) => r.id !== id));
+  };
+
+  const addRule = async () => {
+    const created = await api.createAlarmRule({
+      metric: 'cpu',
+      operator: '>',
+      threshold: '80% / 5m',
+      severity: 'warning',
+      enabled: true,
+    });
+    setRules((rs) => [...rs, created]);
+    toast('Kural eklendi', { type: 'success' });
+  };
+
+  return (
+    <Card pad={0} style={{ overflow: 'hidden' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: RULE_COLS,
+          columnGap: 14,
+          padding: '11px 18px',
+          borderBottom: '1px solid var(--line)',
+          background: 'var(--bg-1)',
+        }}
+      >
+        {['', 'Metrik', 'Op', 'Eşik', 'Seviye', ''].map((h, i) => (
+          <div
+            key={i}
+            className="mono"
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--tx-3)',
+            }}
+          >
+            {h}
+          </div>
+        ))}
+      </div>
+      {rules.map((r, i) => (
+        <div
+          key={r.id}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: RULE_COLS,
+            columnGap: 14,
+            alignItems: 'center',
+            padding: '13px 18px',
+            borderBottom: i === rules.length - 1 ? 'none' : '1px solid var(--line)',
+            opacity: r.enabled ? 1 : 0.5,
+          }}
+        >
+          <Toggle on={r.enabled} onClick={() => toggleRule(r)} />
+          <span className="mono" style={{ fontSize: 13, color: 'var(--tx-0)', fontWeight: 600 }}>
+            {r.metric}
+          </span>
+          <span className="mono" style={{ fontSize: 13, color: 'var(--acc-2)' }}>
+            {r.operator}
+          </span>
+          <span className="mono" style={{ fontSize: 13, color: 'var(--tx-1)' }}>
+            {r.threshold}
+          </span>
+          <div>
+            <Badge color={SEV[r.severity].color} bg={SEV[r.severity].soft} line={SEV[r.severity].line}>
+              {SEV[r.severity].label}
+            </Badge>
+          </div>
+          <button onClick={() => removeRule(r.id)} style={{ color: 'var(--tx-3)', justifySelf: 'end' }}>
+            <Icon name="trash" size={15} />
+          </button>
+        </div>
+      ))}
+      <div style={{ padding: 14, borderTop: '1px solid var(--line)' }}>
+        <Button variant="soft" icon="plus" size="sm" onClick={addRule}>
+          Kural ekle
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 function ChannelsTab() {
+  const [channels, setChannels] = useState<ApiChannel[]>([]);
+
+  useEffect(() => {
+    api.listChannels().then(setChannels).catch(() => undefined);
+  }, []);
+
+  const slack = channels.find((c) => c.type === 'slack');
+  const config = (slack?.config ?? {}) as Record<string, string>;
+
+  const toggleSlack = async () => {
+    if (!slack) return;
+    const updated = await api.updateChannel(slack.id, { enabled: !slack.enabled });
+    setChannels((cs) => cs.map((c) => (c.id === updated.id ? updated : c)));
+  };
+
   const others: Array<[string, IconName]> = [
     ['E-posta', 'bell'],
     ['Telegram', 'bell'],
     ['Webhook', 'external'],
     ['PagerDuty', 'shield'],
   ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <Card pad={20} glow>
@@ -178,17 +205,19 @@ function ChannelsTab() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                 <span style={{ fontWeight: 700, fontSize: 15 }}>Slack</span>
-                <Badge color="var(--ok)" bg="var(--ok-soft)" line="var(--ok-line)" dot>
-                  bağlı
-                </Badge>
+                {slack?.enabled && (
+                  <Badge color="var(--ok)" bg="var(--ok-soft)" line="var(--ok-line)" dot>
+                    bağlı
+                  </Badge>
+                )}
               </div>
               <div className="mono" style={{ fontSize: 12.5, color: 'var(--tx-2)', marginTop: 5 }}>
-                workspace: <span style={{ color: 'var(--tx-1)' }}>acme-eng</span> · kanal:{' '}
-                <span style={{ color: 'var(--acc-2)' }}>#alerts-prod</span>
+                workspace: <span style={{ color: 'var(--tx-1)' }}>{config.workspace ?? '—'}</span> · kanal:{' '}
+                <span style={{ color: 'var(--acc-2)' }}>{config.criticalChannel ?? '—'}</span>
               </div>
             </div>
           </div>
-          <Toggle on onClick={() => {}} />
+          <Toggle on={!!slack?.enabled} onClick={toggleSlack} />
         </div>
         <div
           style={{
@@ -201,26 +230,11 @@ function ChannelsTab() {
           }}
         >
           <Field label="Kritik alarmlar → kanal">
-            <TextInput value="#alerts-prod" onChange={() => {}} mono prefix="#" />
+            <TextInput value={config.criticalChannel ?? ''} onChange={() => {}} mono prefix="#" />
           </Field>
           <Field label="Uyarılar → kanal">
-            <TextInput value="#alerts-warn" onChange={() => {}} mono prefix="#" />
+            <TextInput value={config.warningChannel ?? ''} onChange={() => {}} mono prefix="#" />
           </Field>
-        </div>
-        <div
-          style={{
-            marginTop: 14,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: 12,
-            borderRadius: 9,
-            background: 'var(--bg-1)',
-            border: '1px solid var(--line)',
-          }}
-        >
-          <Toggle on onClick={() => {}} />
-          <span style={{ fontSize: 12.5, color: 'var(--tx-1)' }}>@here ile kritik alarmları etiketle</span>
         </div>
       </Card>
       {others.map(([n, ic]) => (
@@ -257,50 +271,93 @@ function ChannelsTab() {
 }
 
 function GeneralTab() {
-  const rows: Array<[string, string, string]> = [
-    ['Veri saklama süresi', 'Metrik geçmişi ne kadar tutulsun', '30 gün'],
-    ['Toplama aralığı', 'Varsayılan polling sıklığı', '30 sn'],
-    ['Sessiz saatler', '22:00 – 07:00 yalnızca kritik', 'açık'],
-    ['Otomatik onarım', 'Restart loop’ta compose restart dene', 'kapalı'],
+  const [settings, setSettings] = useState<ApiSettings | null>(null);
+
+  useEffect(() => {
+    api.getSettings().then(setSettings).catch(() => undefined);
+  }, []);
+
+  const patch = async (body: Partial<ApiSettings>) => {
+    setSettings(await api.updateSettings(body));
+  };
+
+  if (!settings) return null;
+
+  const textRows: Array<[string, string, string]> = [
+    ['Veri saklama süresi', 'Metrik geçmişi ne kadar tutulsun', `${settings.dataRetentionDays} gün`],
+    ['Toplama aralığı', 'Varsayılan polling sıklığı', `${settings.defaultInterval} sn`],
   ];
+  const toggleRows: Array<[string, string, boolean, () => void]> = [
+    [
+      'Sessiz saatler',
+      `${settings.quietHoursStart} – ${settings.quietHoursEnd} yalnızca kritik`,
+      settings.quietHoursEnabled,
+      () => patch({ quietHoursEnabled: !settings.quietHoursEnabled }),
+    ],
+    [
+      'Otomatik onarım',
+      'Restart loop’ta compose restart dene',
+      settings.autoRemediationEnabled,
+      () => patch({ autoRemediationEnabled: !settings.autoRemediationEnabled }),
+    ],
+  ];
+
   return (
     <Card pad={22}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {rows.map(([t, d, v], i) => (
-          <div
-            key={t}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '15px 0',
-              borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--line)',
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{t}</div>
-              <div style={{ fontSize: 12, color: 'var(--tx-3)', marginTop: 2 }}>{d}</div>
-            </div>
-            {v === 'açık' || v === 'kapalı' ? (
-              <Toggle on={v === 'açık'} onClick={() => {}} />
-            ) : (
-              <span
-                className="mono"
-                style={{
-                  fontSize: 13,
-                  color: 'var(--tx-1)',
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  background: 'var(--bg-1)',
-                  border: '1px solid var(--line-2)',
-                }}
-              >
-                {v}
-              </span>
-            )}
-          </div>
+        {textRows.map(([t, d, v]) => (
+          <Row key={t} title={t} desc={d}>
+            <span
+              className="mono"
+              style={{
+                fontSize: 13,
+                color: 'var(--tx-1)',
+                padding: '6px 12px',
+                borderRadius: 8,
+                background: 'var(--bg-1)',
+                border: '1px solid var(--line-2)',
+              }}
+            >
+              {v}
+            </span>
+          </Row>
+        ))}
+        {toggleRows.map(([t, d, on, onClick], i) => (
+          <Row key={t} title={t} desc={d} last={i === toggleRows.length - 1}>
+            <Toggle on={on} onClick={onClick} />
+          </Row>
         ))}
       </div>
     </Card>
+  );
+}
+
+function Row({
+  title,
+  desc,
+  children,
+  last,
+}: {
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '15px 0',
+        borderBottom: last ? 'none' : '1px solid var(--line)',
+      }}
+    >
+      <div>
+        <div style={{ fontWeight: 600, fontSize: 13.5 }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--tx-3)', marginTop: 2 }}>{desc}</div>
+      </div>
+      {children}
+    </div>
   );
 }

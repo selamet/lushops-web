@@ -1,29 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Toggle } from '@/components/form';
 import { Button, Card, Icon } from '@/components/ui';
-
-interface RemediationRule {
-  id: string;
-  on: boolean;
-  when: string;
-  action: string;
-  cmd: string;
-  runs: number;
-  last: string;
-}
-
-const INITIAL_RULES: RemediationRule[] = [
-  { id: 'ar1', on: true, when: 'status == exited & OOMKilled', action: 'Bellek limitini %25 artır + recreate', cmd: 'compose up -d --force-recreate', runs: 3, last: '2 dk önce' },
-  { id: 'ar2', on: true, when: 'restarts > 5 / 10dk', action: 'Son sağlıklı image’a rollback', cmd: 'compose pull <prev> && up -d', runs: 1, last: 'dün' },
-  { id: 'ar3', on: false, when: 'cpu > 95% / 10dk', action: 'Replica sayısını 1 artır (scale)', cmd: 'compose up -d --scale api=+1', runs: 0, last: '—' },
-  { id: 'ar4', on: true, when: 'healthcheck fail x3', action: 'Container’ı yeniden başlat', cmd: 'docker restart <name>', runs: 7, last: '5 dk önce' },
-];
+import { api } from '@/api/endpoints';
+import { relativeTime } from '@/api/map';
+import type { ApiRemediationRule } from '@/api/types';
 
 /** Auto-remediation rules tab: condition → action cards with run counters. */
 export function AutoRemediation() {
-  const [rules, setRules] = useState(INITIAL_RULES);
-  const toggle = (id: string) =>
-    setRules((rs) => rs.map((r) => (r.id === id ? { ...r, on: !r.on } : r)));
+  const [rules, setRules] = useState<ApiRemediationRule[]>([]);
+
+  useEffect(() => {
+    api.listRemediationRules().then(setRules).catch(() => undefined);
+  }, []);
+
+  const toggle = async (rule: ApiRemediationRule) => {
+    const updated = await api.updateRemediationRule(rule.id, { enabled: !rule.enabled });
+    setRules((rs) => rs.map((r) => (r.id === updated.id ? updated : r)));
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -45,9 +38,9 @@ export function AutoRemediation() {
         </div>
       </Card>
       {rules.map((r) => (
-        <Card key={r.id} pad={0} style={{ overflow: 'hidden', opacity: r.on ? 1 : 0.55 }}>
+        <Card key={r.id} pad={0} style={{ overflow: 'hidden', opacity: r.enabled ? 1 : 0.55 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 18px' }}>
-            <Toggle on={r.on} onClick={() => toggle(r.id)} />
+            <Toggle on={r.enabled} onClick={() => toggle(r)} />
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <span
@@ -61,23 +54,25 @@ export function AutoRemediation() {
                     border: '1px solid var(--warn-line)',
                   }}
                 >
-                  EĞER {r.when}
+                  EĞER {r.condition}
                 </span>
                 <Icon name="arrowRight" size={15} color="var(--tx-3)" />
                 <span style={{ fontSize: 13.5, fontWeight: 600 }}>{r.action}</span>
               </div>
               <div className="mono" style={{ fontSize: 11.5, color: 'var(--tx-3)', marginTop: 8 }}>
-                $ {r.cmd}
+                $ {r.command}
               </div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
               <div
                 className="mono tnum"
-                style={{ fontSize: 16, fontWeight: 700, color: r.runs > 0 ? 'var(--acc)' : 'var(--tx-3)' }}
+                style={{ fontSize: 16, fontWeight: 700, color: r.runCount > 0 ? 'var(--acc)' : 'var(--tx-3)' }}
               >
-                {r.runs}
+                {r.runCount}
               </div>
-              <div style={{ fontSize: 10.5, color: 'var(--tx-3)' }}>çalıştı · {r.last}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--tx-3)' }}>
+                çalıştı · {r.lastRunAt ? relativeTime(r.lastRunAt) : '—'}
+              </div>
             </div>
           </div>
         </Card>
