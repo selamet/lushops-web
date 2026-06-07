@@ -4,5 +4,6 @@ As each module is added, import its models here so they register on `Base.metada
 """
 
 from app.core.database import Base
+from app.modules.auth.models import User
 
-__all__ = ["Base"]
+__all__ = ["Base", "User"]
