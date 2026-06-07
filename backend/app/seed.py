@@ -16,7 +16,14 @@ from app.core.security import hash_password
 from app.modules.alarms.models import Alarm, AlarmState, Severity, TimelineEvent
 from app.modules.apps.models import App, AppHealth, AuthMethod, Environment
 from app.modules.auth.models import User, UserRole
-from app.modules.containers.models import Container, ContainerHealth, ContainerStatus, ServiceType
+from app.modules.containers.models import (
+    Container,
+    ContainerHealth,
+    ContainerStatus,
+    LogEntry,
+    LogLevel,
+    ServiceType,
+)
 from app.modules.metrics.models import MetricSample
 from app.modules.notifications.models import ChannelType, NotificationChannel
 from app.modules.rules.models import AlarmRule, RemediationRule
@@ -132,6 +139,34 @@ REMEDIATION_RULES = [
 ]
 
 
+def _logs_for(container: Container) -> list[tuple[LogLevel, str, int]]:
+    """Plausible recent log lines (level, message, seconds-ago) keyed off status."""
+    if container.status == ContainerStatus.exited:
+        return [
+            (LogLevel.info, f"Starting worker {container.name}", 95),
+            (LogLevel.info, "Connected to broker amqp://rabbitmq:5672", 80),
+            (LogLevel.warn, "Task batch_aggregate consuming 1.8GB RSS", 40),
+            (LogLevel.warn, "Memory pressure: 96% of cgroup limit", 22),
+            (LogLevel.error, "Worker received SIGKILL (OOMKilled)", 8),
+            (LogLevel.fatal, "Container exited with code 137", 5),
+        ]
+    if container.status == ContainerStatus.restarting:
+        return [
+            (LogLevel.info, f"Booting {container.name}", 60),
+            (LogLevel.warn, "Redis connection reset, retrying (2/5)", 30),
+            (LogLevel.error, "Healthcheck failed: /health returned 503", 18),
+            (LogLevel.warn, "Supervisor restarting worker (attempt 7)", 9),
+            (LogLevel.info, "Reconnecting to broker...", 3),
+        ]
+    return [
+        (LogLevel.info, f"{container.name} ready, accepting connections", 48),
+        (LogLevel.info, "GET /health 200 1.2ms", 31),
+        (LogLevel.info, "POST /api/v1/charge 201 84ms", 22),
+        (LogLevel.warn, "Slow query 412ms on table transactions", 12),
+        (LogLevel.info, "GET /metrics 200 0.8ms", 4),
+    ]
+
+
 def _series(base: float, count: int) -> list[float]:
     value = base
     points = []
@@ -179,6 +214,8 @@ async def seed() -> None:
 
         now = datetime.now(UTC)
         for container in containers_by_name.values():
+            for level, message, secs in _logs_for(container):
+                db.add(LogEntry(container_id=container.id, level=level, message=message, recorded_at=now - timedelta(seconds=secs)))
             if container.status == ContainerStatus.exited:
                 continue
             cpu_pts = _series(container.cpu, 40)
