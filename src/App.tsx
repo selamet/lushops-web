@@ -6,6 +6,7 @@ import { CriticalBanner, Sidebar, Topbar } from '@/components/layout';
 import { ALARMS } from '@/data/alarms';
 import { useFleet } from '@/store/fleet';
 import type { App as AppModel } from '@/types';
+import { AppDetail } from '@/screens/AppDetail';
 import { Overview } from '@/screens/Overview';
 import { Placeholder } from '@/screens/Placeholder';
 
@@ -88,7 +89,7 @@ export function App() {
           <div style={{ maxWidth: 1320, margin: '0 auto' }}>
             <Routes>
               <Route path="/" element={<Overview />} />
-              <Route path="/app/:id" element={<Placeholder title="Uygulama detayı" />} />
+              <Route path="/app/:id" element={<AppDetail />} />
               <Route
                 path="/app/:id/container/:cid"
                 element={<Placeholder title="Container detayı" />}
