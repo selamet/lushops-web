@@ -1,0 +1,213 @@
+/*
+ * Sentinel design tokens + base styles.
+ * Values mirror the design handoff one-to-one — change them here only.
+ */
+
+:root {
+  /* Surfaces — cool near-black */
+  --bg-0: #080b11;
+  --bg-1: #0b0f17;
+  --bg-2: #0f1420;
+  --panel: #111826;
+  --panel-2: #141c2c;
+  --panel-hi: #182133;
+  --elev: #1a2334;
+
+  /* Borders */
+  --line: rgba(255, 255, 255, 0.06);
+  --line-2: rgba(255, 255, 255, 0.09);
+  --line-3: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --tx-0: #eef1f7;
+  --tx-1: #c4cbda;
+  --tx-2: #8b94a8;
+  --tx-3: #5b6478;
+  --tx-4: #3e4658;
+
+  /* Accent — blue */
+  --acc: #4f7cff;
+  --acc-2: #6b91ff;
+  --acc-soft: rgba(79, 124, 255, 0.12);
+  --acc-line: rgba(79, 124, 255, 0.32);
+  --acc-glow: rgba(79, 124, 255, 0.45);
+
+  /* Status */
+  --ok: #34d399;
+  --ok-soft: rgba(52, 211, 153, 0.12);
+  --ok-line: rgba(52, 211, 153, 0.3);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.12);
+  --warn-line: rgba(251, 191, 36, 0.3);
+  --crit: #f5556d;
+  --crit-soft: rgba(245, 85, 109, 0.13);
+  --crit-line: rgba(245, 85, 109, 0.32);
+  --info: #38bdf8;
+  --info-soft: rgba(56, 189, 248, 0.12);
+  --muted-soft: rgba(139, 148, 168, 0.12);
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --radius-xs: 6px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 30px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 20px 60px rgba(0, 0, 0, 0.6);
+
+  --sans: 'Manrope', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg-0);
+  color: var(--tx-0);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.01em;
+}
+
+#root {
+  height: 100vh;
+}
+
+::selection {
+  background: var(--acc-soft);
+  color: #fff;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.16);
+  background-clip: padding-box;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-feature-settings: 'tnum' 1;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--glow, rgba(52, 211, 153, 0.5));
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fadeUp {
+  from {
+    transform: translateY(7px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+@keyframes bannerIn {
+  from {
+    transform: translateY(-6px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes popIn {
+  from {
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes toastIn {
+  from {
+    transform: translateX(20px);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.fade-up {
+  animation: fadeUp 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
