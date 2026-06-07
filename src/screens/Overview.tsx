@@ -1,7 +1,9 @@
 import { AppCard } from '@/components/AppCard';
 import { Button, Card, Eyebrow, Icon, type IconName } from '@/components/ui';
+import { api } from '@/api/endpoints';
 import { useAlarms } from '@/store/alarms';
 import { useFleet } from '@/store/fleet';
+import { useOverlay } from '@/store/overlay';
 
 interface Kpi {
   label: string;
@@ -14,7 +16,23 @@ interface Kpi {
 /** Fleet-wide health at a glance: KPI row plus the app card grid. */
 export function Overview() {
   const apps = useFleet((s) => s.apps);
+  const refreshFleet = useFleet((s) => s.refresh);
   const alarms = useAlarms((s) => s.alarms);
+  const refreshAlarms = useAlarms((s) => s.refresh);
+  const toast = useOverlay((s) => s.toast);
+
+  const evaluateNow = async () => {
+    try {
+      const r = await api.evaluate();
+      toast('Kurallar değerlendirildi', {
+        type: 'success',
+        sub: `${r.created} yeni · ${r.resolved} çözüldü · ${r.remediated} onarım`,
+      });
+    } catch {
+      // viewers cannot trigger evaluation; still refresh below
+    }
+    await Promise.all([refreshFleet(), refreshAlarms()]);
+  };
 
   const containers = apps.flatMap((a) => a.containers);
   const totalContainers = containers.length;
@@ -111,7 +129,7 @@ export function Overview() {
           <Button icon="filter" variant="ghost" size="sm">
             Filtrele
           </Button>
-          <Button icon="refresh" variant="ghost" size="sm">
+          <Button icon="refresh" variant="ghost" size="sm" onClick={evaluateNow}>
             Yenile
           </Button>
         </div>

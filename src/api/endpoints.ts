@@ -54,4 +54,7 @@ export const api = {
 
   getSettings: () => request<ApiSettings>('/settings'),
   updateSettings: (body: unknown) => request<ApiSettings>('/settings', { method: 'PUT', body }),
+
+  evaluate: () =>
+    request<{ created: number; resolved: number; remediated: number }>('/engine/evaluate', { method: 'POST' }),
 };
