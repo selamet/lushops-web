@@ -1,11 +1,11 @@
-# Sentinel — Container Monitoring & Alarm Panel
+# LushOps — Container Monitoring & Alarm Panel
 
 Web interface for the operations panel that monitors services running with
 Docker Compose on Google Cloud VMs (Django/FastAPI, Nginx, PostgreSQL, Redis,
 Celery/Flower, RabbitMQ), raises alarms when threshold rules are triggered, and
 can act on containers.
 
-> Data comes from the Sentinel API in a separate repository (FastAPI,
+> Data comes from the LushOps API in a separate repository (FastAPI,
 > [`lushops-api`](https://github.com/selamet/lushops-api)). Sign-in uses JWT; on
 > startup the app fetches the fleet and alarms and refreshes them every 15s.
 > The API address is configured with `VITE_API_URL` (default `http://localhost:8000`).

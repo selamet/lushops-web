@@ -1,4 +1,4 @@
-// ============ Sentinel domain model ============
+// ============ LushOps domain model ============
 // Mirrors the mock schema from the design handoff. Map these to the real
 // API responses when wiring up live data.
 

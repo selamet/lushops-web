@@ -1,4 +1,4 @@
-// Response shapes returned by the Sentinel backend (camelCase, as serialized).
+// Response shapes returned by the LushOps backend (camelCase, as serialized).
 
 export type ApiRole = 'admin' | 'operator' | 'viewer';
 
@@ -16,6 +16,29 @@ export interface ApiToken {
   tokenType: string;
 }
 
+export type OrgRole = 'owner' | 'member';
+
+export interface ApiOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  role: OrgRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiMember {
+  id: string;
+  userId: string;
+  email: string;
+  fullName: string;
+  role: OrgRole;
+  createdAt: string;
+}
+
+export type CloudProvider = 'gcp' | 'aws' | 'azure' | 'other';
+export type AuthMethod = 'sa' | 'iam' | 'sp' | 'ssh' | 'iap' | 'key';
+
 export interface ApiVm {
   instance: string;
   zone: string;
@@ -26,13 +49,15 @@ export interface ApiVm {
 
 export interface ApiApp {
   id: string;
+  organizationId: string;
   name: string;
   env: 'prod' | 'staging' | 'dev';
   description: string;
   health: 'ok' | 'warn' | 'crit';
   vm: ApiVm;
-  gcpProject: string;
-  authMethod: 'sa' | 'ssh' | 'iap';
+  provider: CloudProvider;
+  project: string;
+  authMethod: AuthMethod;
   composePath: string;
   collectInterval: number;
   createdAt: string;

@@ -1,5 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
-const TOKEN_KEY = 'sentinel_token';
+const TOKEN_KEY = 'lushops_token';
 
 export interface ApiError {
   status: number;

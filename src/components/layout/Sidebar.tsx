@@ -66,7 +66,7 @@ export function Sidebar({ apps, activeAlarmCount }: SidebarProps) {
           <Icon name="activity" size={18} color="#fff" strokeW={2.4} />
         </div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em' }}>Sentinel</div>
+          <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em' }}>LushOps</div>
           <div
             className="mono"
             style={{

@@ -4,14 +4,16 @@ import { Field, TextInput, Toggle } from '@/components/form';
 import { Badge, Button, Card, Eyebrow, Icon, type IconName } from '@/components/ui';
 import { SEV } from '@/data/services';
 import { api } from '@/api/endpoints';
+import { useOrgs } from '@/store/orgs';
 import { useOverlay } from '@/store/overlay';
-import type { ApiAlarmRule, ApiChannel, ApiSettings } from '@/api/types';
+import type { ApiAlarmRule, ApiChannel, ApiMember, ApiSettings, OrgRole } from '@/api/types';
+import type { ApiError } from '@/api/client';
 
-type Tab = 'rules' | 'automation' | 'channels' | 'general';
+type Tab = 'rules' | 'automation' | 'channels' | 'organization' | 'general';
 
 const RULE_COLS = '40px 1.4fr 0.6fr 1.2fr 1fr 50px';
 
-/** Settings: alarm rules, auto-remediation, notification channels and general options. */
+/** Settings: alarm rules, auto-remediation, notification channels, organization and general options. */
 export function Settings() {
   const [tab, setTab] = useState<Tab>('rules');
 
@@ -19,6 +21,7 @@ export function Settings() {
     ['rules', 'Alarm kuralları', 'alert'],
     ['automation', 'Otomatik onarım', 'shield'],
     ['channels', 'Bildirim kanalları', 'bell'],
+    ['organization', 'Organizasyon', 'layers'],
     ['general', 'Genel', 'settings'],
   ];
 
@@ -55,7 +58,219 @@ export function Settings() {
       {tab === 'rules' && <RulesTab />}
       {tab === 'automation' && <AutoRemediation />}
       {tab === 'channels' && <ChannelsTab />}
+      {tab === 'organization' && <OrganizationTab />}
       {tab === 'general' && <GeneralTab />}
+    </div>
+  );
+}
+
+const MEMBER_COLS = '1.4fr 1.6fr 0.8fr 40px';
+
+/** Manage the active organization's members. Owners can add, re-role and remove. */
+function OrganizationTab() {
+  const toast = useOverlay((s) => s.toast);
+  const orgs = useOrgs((s) => s.orgs);
+  const activeId = useOrgs((s) => s.activeId);
+  const setActive = useOrgs((s) => s.setActive);
+  const loadOrgs = useOrgs((s) => s.load);
+
+  const [members, setMembers] = useState<ApiMember[]>([]);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<OrgRole>('member');
+  const [busy, setBusy] = useState(false);
+
+  const org = orgs.find((o) => o.id === activeId) ?? orgs[0];
+  const isOwner = org?.role === 'owner';
+
+  useEffect(() => {
+    if (!orgs.length) loadOrgs();
+  }, [orgs.length, loadOrgs]);
+
+  useEffect(() => {
+    if (!org) return;
+    api
+      .listMembers(org.id)
+      .then(setMembers)
+      .catch(() => setMembers([]));
+  }, [org?.id]);
+
+  const addMember = async () => {
+    if (!org || busy || !email.trim()) return;
+    setBusy(true);
+    try {
+      const member = await api.addMember(org.id, { email: email.trim(), role });
+      setMembers((m) => [...m, member]);
+      setEmail('');
+      toast('Üye eklendi', { type: 'success', sub: member.email });
+    } catch (e) {
+      toast('Üye eklenemedi', { type: 'error', sub: (e as ApiError).message });
+    }
+    setBusy(false);
+  };
+
+  const changeRole = async (member: ApiMember, next: OrgRole) => {
+    if (!org) return;
+    try {
+      const updated = await api.updateMember(org.id, member.id, next);
+      setMembers((m) => m.map((x) => (x.id === updated.id ? updated : x)));
+    } catch (e) {
+      toast('Rol değiştirilemedi', { type: 'error', sub: (e as ApiError).message });
+    }
+  };
+
+  const removeMember = async (member: ApiMember) => {
+    if (!org) return;
+    try {
+      await api.removeMember(org.id, member.id);
+      setMembers((m) => m.filter((x) => x.id !== member.id));
+    } catch (e) {
+      toast('Üye çıkarılamadı', { type: 'error', sub: (e as ApiError).message });
+    }
+  };
+
+  if (!org) {
+    return (
+      <Card pad={20}>
+        <div style={{ fontSize: 13, color: 'var(--tx-3)' }}>Organizasyon yükleniyor…</div>
+      </Card>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {orgs.length > 1 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {orgs.map((o) => (
+            <button
+              key={o.id}
+              onClick={() => setActive(o.id)}
+              style={{
+                padding: '8px 13px',
+                borderRadius: 9,
+                fontSize: 13,
+                fontWeight: 600,
+                color: o.id === org.id ? 'var(--acc)' : 'var(--tx-2)',
+                background: o.id === org.id ? 'var(--acc-soft)' : 'var(--bg-1)',
+                border: `1px solid ${o.id === org.id ? 'var(--acc-line)' : 'var(--line-2)'}`,
+              }}
+            >
+              {o.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <Card pad={0} style={{ overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: MEMBER_COLS,
+            columnGap: 14,
+            padding: '11px 18px',
+            borderBottom: '1px solid var(--line)',
+            background: 'var(--bg-1)',
+          }}
+        >
+          {['Ad', 'E-posta', 'Rol', ''].map((h, i) => (
+            <div
+              key={i}
+              className="mono"
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: 'var(--tx-3)',
+              }}
+            >
+              {h}
+            </div>
+          ))}
+        </div>
+        {members.map((m, i) => (
+          <div
+            key={m.id}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: MEMBER_COLS,
+              columnGap: 14,
+              alignItems: 'center',
+              padding: '13px 18px',
+              borderBottom: i === members.length - 1 ? 'none' : '1px solid var(--line)',
+            }}
+          >
+            <span style={{ fontSize: 13.5, color: 'var(--tx-0)', fontWeight: 600 }}>{m.fullName}</span>
+            <span className="mono" style={{ fontSize: 12.5, color: 'var(--tx-2)' }}>
+              {m.email}
+            </span>
+            {isOwner ? (
+              <select
+                value={m.role}
+                onChange={(e) => changeRole(m, e.target.value as OrgRole)}
+                style={{
+                  background: 'var(--bg-1)',
+                  border: '1px solid var(--line-2)',
+                  borderRadius: 8,
+                  padding: '6px 9px',
+                  color: 'var(--tx-1)',
+                  fontSize: 12.5,
+                }}
+              >
+                <option value="owner">owner</option>
+                <option value="member">member</option>
+              </select>
+            ) : (
+              <Badge color="var(--tx-2)" bg="var(--panel-hi)" line="var(--line-2)">
+                {m.role}
+              </Badge>
+            )}
+            {isOwner ? (
+              <button onClick={() => removeMember(m)} style={{ color: 'var(--tx-3)', justifySelf: 'end' }}>
+                <Icon name="trash" size={15} />
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
+        ))}
+        {isOwner && (
+          <div
+            style={{
+              padding: 16,
+              borderTop: '1px solid var(--line)',
+              display: 'grid',
+              gridTemplateColumns: '1.4fr 0.8fr auto',
+              gap: 10,
+              alignItems: 'end',
+            }}
+          >
+            <Field label="E-posta ile üye ekle" hint="kayıtlı kullanıcı">
+              <TextInput value={email} onChange={setEmail} placeholder="teammate@company.com" mono />
+            </Field>
+            <Field label="Rol">
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as OrgRole)}
+                style={{
+                  width: '100%',
+                  background: 'var(--bg-1)',
+                  border: '1px solid var(--line-2)',
+                  borderRadius: 9,
+                  padding: '11px 12px',
+                  color: 'var(--tx-1)',
+                  fontSize: 13,
+                }}
+              >
+                <option value="member">member</option>
+                <option value="owner">owner</option>
+              </select>
+            </Field>
+            <Button variant="primary" icon="plus" onClick={addMember}>
+              {busy ? 'Ekleniyor…' : 'Ekle'}
+            </Button>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

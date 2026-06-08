@@ -8,7 +8,10 @@ import type {
   ApiChannel,
   ApiContainer,
   ApiLog,
+  ApiMember,
   ApiMetric,
+  ApiOrganization,
+  OrgRole,
   ApiRemediationRule,
   ApiSettings,
   ApiToken,
@@ -18,7 +21,20 @@ import type {
 export const api = {
   login: (email: string, password: string) =>
     request<ApiToken>('/auth/login', { method: 'POST', form: { username: email, password } }),
+  register: (email: string, fullName: string, password: string) =>
+    request<ApiUser>('/auth/register', { method: 'POST', body: { email, fullName, password } }),
   me: () => request<ApiUser>('/auth/me'),
+
+  listOrganizations: () => request<ApiOrganization[]>('/organizations'),
+  createOrganization: (body: { name: string; slug?: string }) =>
+    request<ApiOrganization>('/organizations', { method: 'POST', body }),
+  listMembers: (orgId: string) => request<ApiMember[]>(`/organizations/${orgId}/members`),
+  addMember: (orgId: string, body: { email: string; role?: OrgRole }) =>
+    request<ApiMember>(`/organizations/${orgId}/members`, { method: 'POST', body }),
+  updateMember: (orgId: string, memberId: string, role: OrgRole) =>
+    request<ApiMember>(`/organizations/${orgId}/members/${memberId}`, { method: 'PATCH', body: { role } }),
+  removeMember: (orgId: string, memberId: string) =>
+    request<void>(`/organizations/${orgId}/members/${memberId}`, { method: 'DELETE' }),
 
   listApps: () => request<ApiApp[]>('/apps'),
   createApp: (body: unknown) => request<ApiApp>('/apps', { method: 'POST', body }),
