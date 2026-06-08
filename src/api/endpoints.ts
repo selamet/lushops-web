@@ -9,6 +9,7 @@ import type {
   ApiContainer,
   ApiLog,
   ApiMetric,
+  ApiOrganization,
   ApiRemediationRule,
   ApiSettings,
   ApiToken,
@@ -21,6 +22,10 @@ export const api = {
   register: (email: string, fullName: string, password: string) =>
     request<ApiUser>('/auth/register', { method: 'POST', body: { email, fullName, password } }),
   me: () => request<ApiUser>('/auth/me'),
+
+  listOrganizations: () => request<ApiOrganization[]>('/organizations'),
+  createOrganization: (body: { name: string; slug?: string }) =>
+    request<ApiOrganization>('/organizations', { method: 'POST', body }),
 
   listApps: () => request<ApiApp[]>('/apps'),
   createApp: (body: unknown) => request<ApiApp>('/apps', { method: 'POST', body }),

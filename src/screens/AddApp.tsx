@@ -1,39 +1,95 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Field, TextInput, Toggle } from '@/components/form';
 import { Button, Card, Eyebrow, Icon, type IconName } from '@/components/ui';
 import { api } from '@/api/endpoints';
 import { paths } from '@/lib/routes';
 import { useFleet } from '@/store/fleet';
+import { useOrgs } from '@/store/orgs';
 import { useOverlay } from '@/store/overlay';
 import type { ApiError } from '@/api/client';
+import type { AuthMethod, CloudProvider } from '@/api/types';
 import type { Environment } from '@/types';
 
 interface FormState {
+  organizationId: string;
   name: string;
   desc: string;
   env: Environment;
+  provider: CloudProvider;
   instance: string;
   zone: string;
   project: string;
-  auth: 'sa' | 'ssh' | 'iap';
+  auth: AuthMethod;
   composePath: string;
   interval: string;
 }
 
-const STEPS = ['Uygulama', 'VM bağlantısı', 'Docker & izleme'];
+const STEPS = ['Uygulama', 'Bulut bağlantısı', 'Docker & izleme'];
+
+const PROVIDERS: Array<[CloudProvider, string]> = [
+  ['gcp', 'Google Cloud'],
+  ['aws', 'AWS'],
+  ['azure', 'Azure'],
+  ['other', 'Diğer'],
+];
+
+/** Auth methods and the project/account field label, per provider. */
+const PROVIDER_CONFIG: Record<
+  CloudProvider,
+  { projectLabel: string; projectPlaceholder: string; auth: Array<[AuthMethod, string, IconName]> }
+> = {
+  gcp: {
+    projectLabel: 'GCP Projesi',
+    projectPlaceholder: 'my-gcp-project-prod',
+    auth: [
+      ['sa', 'Service Account', 'shield'],
+      ['ssh', 'SSH anahtarı', 'terminal'],
+      ['iap', 'IAP tünel', 'net'],
+    ],
+  },
+  aws: {
+    projectLabel: 'AWS Hesabı / Account ID',
+    projectPlaceholder: '123456789012',
+    auth: [
+      ['iam', 'IAM rolü', 'shield'],
+      ['ssh', 'SSH anahtarı', 'terminal'],
+    ],
+  },
+  azure: {
+    projectLabel: 'Azure Subscription',
+    projectPlaceholder: 'acme-prod-subscription',
+    auth: [
+      ['sp', 'Service Principal', 'shield'],
+      ['ssh', 'SSH anahtarı', 'terminal'],
+    ],
+  },
+  other: {
+    projectLabel: 'Proje / Hesap',
+    projectPlaceholder: 'my-account',
+    auth: [
+      ['key', 'API anahtarı', 'shield'],
+      ['ssh', 'SSH anahtarı', 'terminal'],
+    ],
+  },
+};
 
 /** Three-step wizard to register a new monitored app. */
 export function AddApp() {
   const navigate = useNavigate();
   const refresh = useFleet((s) => s.refresh);
   const toast = useOverlay((s) => s.toast);
+  const orgs = useOrgs((s) => s.orgs);
+  const activeOrgId = useOrgs((s) => s.activeId);
+  const loadOrgs = useOrgs((s) => s.load);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>({
+    organizationId: '',
     name: '',
     desc: '',
     env: 'prod',
+    provider: 'gcp',
     instance: '',
     zone: 'europe-west1-b',
     project: '',
@@ -44,16 +100,37 @@ export function AddApp() {
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  // Load the user's organizations and default the form to the active one.
+  useEffect(() => {
+    if (!orgs.length) loadOrgs();
+  }, [orgs.length, loadOrgs]);
+  useEffect(() => {
+    if (!form.organizationId && (activeOrgId || orgs[0])) {
+      set('organizationId', activeOrgId ?? orgs[0].id);
+    }
+  }, [activeOrgId, orgs, form.organizationId]);
+
+  // Switching provider resets the auth method to that provider's default.
+  const setProvider = (provider: CloudProvider) =>
+    setForm((f) => ({ ...f, provider, auth: PROVIDER_CONFIG[provider].auth[0][0] }));
+
   const submit = async () => {
     if (saving) return;
+    if (!form.organizationId) {
+      toast('Organizasyon seçin', { type: 'error' });
+      setStep(0);
+      return;
+    }
     setSaving(true);
     try {
       await api.createApp({
+        organizationId: form.organizationId,
         name: form.name,
         description: form.desc,
         env: form.env,
         vm: { instance: form.instance, zone: form.zone },
-        gcpProject: form.project,
+        provider: form.provider,
+        project: form.project,
         authMethod: form.auth,
         composePath: form.composePath,
         collectInterval: Number(form.interval) || 30,
@@ -67,11 +144,8 @@ export function AddApp() {
     }
   };
 
-  const authOptions: Array<[FormState['auth'], string, IconName]> = [
-    ['sa', 'Service Account', 'shield'],
-    ['ssh', 'SSH anahtarı', 'terminal'],
-    ['iap', 'IAP tünel', 'net'],
-  ];
+  const providerConfig = PROVIDER_CONFIG[form.provider];
+  const authOptions = providerConfig.auth;
 
   return (
     <div
@@ -139,6 +213,30 @@ export function AddApp() {
       <Card pad={24}>
         {step === 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+            <Field label="Organizasyon" hint="bu uygulama buraya bağlanır" span={2}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {orgs.map((o) => (
+                  <button
+                    key={o.id}
+                    onClick={() => set('organizationId', o.id)}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 9,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: form.organizationId === o.id ? 'var(--acc)' : 'var(--tx-2)',
+                      background: form.organizationId === o.id ? 'var(--acc-soft)' : 'var(--bg-1)',
+                      border: `1px solid ${form.organizationId === o.id ? 'var(--acc-line)' : 'var(--line-2)'}`,
+                    }}
+                  >
+                    {o.name}
+                  </button>
+                ))}
+                {!orgs.length && (
+                  <span style={{ fontSize: 12.5, color: 'var(--tx-3)' }}>Organizasyon yükleniyor…</span>
+                )}
+              </div>
+            </Field>
             <Field label="Uygulama adı" hint="benzersiz" span={2}>
               <TextInput value={form.name} onChange={(v) => set('name', v)} placeholder="payments-api" mono />
             </Field>
@@ -177,11 +275,33 @@ export function AddApp() {
 
         {step === 1 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-            <Field label="GCP Projesi" span={2}>
+            <Field label="Bulut sağlayıcı" span={2}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {PROVIDERS.map(([k, l]) => (
+                  <button
+                    key={k}
+                    onClick={() => setProvider(k)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: 9,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: form.provider === k ? 'var(--acc)' : 'var(--tx-2)',
+                      background: form.provider === k ? 'var(--acc-soft)' : 'var(--bg-1)',
+                      border: `1px solid ${form.provider === k ? 'var(--acc-line)' : 'var(--line-2)'}`,
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label={providerConfig.projectLabel} span={2}>
               <TextInput
                 value={form.project}
                 onChange={(v) => set('project', v)}
-                placeholder="my-gcp-project-prod"
+                placeholder={providerConfig.projectPlaceholder}
                 mono
               />
             </Field>
@@ -218,14 +338,12 @@ export function AddApp() {
                 ))}
               </div>
             </Field>
-            <Field label={form.auth === 'ssh' ? 'Özel anahtar yolu' : 'Service account JSON'} span={2}>
+            <Field label={form.auth === 'ssh' ? 'Özel anahtar yolu' : 'Kimlik bilgisi referansı'} span={2}>
               <TextInput
                 value=""
                 onChange={() => {}}
                 placeholder={
-                  form.auth === 'ssh'
-                    ? '~/.ssh/gcp_monitor'
-                    : 'sentinel-monitor@project.iam.gserviceaccount.com'
+                  form.auth === 'ssh' ? '~/.ssh/monitor_key' : 'kimlik bilgisi gizli anahtar referansı'
                 }
                 mono
               />
