@@ -21,6 +21,7 @@ interface FormState {
   zone: string;
   project: string;
   auth: AuthMethod;
+  keyRef: string;
   composePath: string;
   interval: string;
 }
@@ -34,11 +35,20 @@ const PROVIDERS: Array<[CloudProvider, string]> = [
   ['other', 'Diğer'],
 ];
 
-/** Auth methods and the project/account field label, per provider. */
-const PROVIDER_CONFIG: Record<
-  CloudProvider,
-  { projectLabel: string; projectPlaceholder: string; auth: Array<[AuthMethod, string, IconName]> }
-> = {
+interface ProviderConfig {
+  projectLabel: string;
+  projectPlaceholder: string;
+  auth: Array<[AuthMethod, string, IconName]>;
+  /** Short field hints shown next to each input. */
+  hints: { project: string; instance: string; zone: string };
+  /** "Where do I find this?" rows: [label, command/explanation]. */
+  help: Array<[string, string]>;
+  /** SSH private-key path hint + the command that produces it. */
+  keyHelp: string;
+}
+
+/** Per-provider labels, auth methods and where-to-find guidance. */
+const PROVIDER_CONFIG: Record<CloudProvider, ProviderConfig> = {
   gcp: {
     projectLabel: 'GCP Projesi',
     projectPlaceholder: 'my-gcp-project-prod',
@@ -47,6 +57,13 @@ const PROVIDER_CONFIG: Record<
       ['ssh', 'SSH anahtarı', 'terminal'],
       ['iap', 'IAP tünel', 'net'],
     ],
+    hints: { project: 'proje ID', instance: 'VM adı', zone: 'ör. europe-west3-a' },
+    help: [
+      ['Proje ID', 'gcloud projects list  •  Console → üst menü proje seçici'],
+      ['VM Instance & Zone', 'gcloud compute instances list  •  Console → Compute Engine → VM instances'],
+      ['Service Account e-postası', 'gcloud iam service-accounts list'],
+    ],
+    keyHelp: 'gcloud compute ssh <instance> --zone <zone> → anahtar ~/.ssh/google_compute_engine olarak oluşur',
   },
   aws: {
     projectLabel: 'AWS Hesabı / Account ID',
@@ -55,6 +72,13 @@ const PROVIDER_CONFIG: Record<
       ['iam', 'IAM rolü', 'shield'],
       ['ssh', 'SSH anahtarı', 'terminal'],
     ],
+    hints: { project: '12 haneli hesap no', instance: 'Instance ID / Name', zone: 'ör. eu-west-1a' },
+    help: [
+      ['Account ID', 'aws sts get-caller-identity --query Account  •  Console → sağ üst hesap menüsü'],
+      ['Instance & AZ', 'aws ec2 describe-instances  •  Console → EC2 → Instances'],
+      ['IAM rolü', 'aws iam list-roles  •  Console → IAM → Roles'],
+    ],
+    keyHelp: 'EC2 key pair’i oluştururken indirdiğin .pem dosyası, ör. ~/.ssh/my-ec2-key.pem',
   },
   azure: {
     projectLabel: 'Azure Subscription',
@@ -63,6 +87,13 @@ const PROVIDER_CONFIG: Record<
       ['sp', 'Service Principal', 'shield'],
       ['ssh', 'SSH anahtarı', 'terminal'],
     ],
+    hints: { project: 'subscription ID', instance: 'VM adı', zone: 'ör. westeurope' },
+    help: [
+      ['Subscription ID', 'az account show --query id  •  Portal → Subscriptions'],
+      ['VM & Bölge', 'az vm list -o table  •  Portal → Virtual machines'],
+      ['Service Principal', 'az ad sp list --show-mine'],
+    ],
+    keyHelp: 'az vm create --generate-ssh-keys ile üretilen ~/.ssh/id_rsa',
   },
   other: {
     projectLabel: 'Proje / Hesap',
@@ -71,6 +102,12 @@ const PROVIDER_CONFIG: Record<
       ['key', 'API anahtarı', 'shield'],
       ['ssh', 'SSH anahtarı', 'terminal'],
     ],
+    hints: { project: 'proje/hesap adı', instance: 'sunucu adı', zone: 'bölge' },
+    help: [
+      ['Sunucu & bölge', 'Sağlayıcı panelinden makine adını ve bölgesini al'],
+      ['SSH erişimi', 'ssh-keygen -t ed25519 -f ~/.ssh/sentinel_key ile anahtar üret'],
+    ],
+    keyHelp: 'Sunucuya SSH yetkisi verdiğin özel anahtarın yolu, ör. ~/.ssh/sentinel_key',
   },
 };
 
@@ -94,6 +131,7 @@ export function AddApp() {
     zone: 'europe-west1-b',
     project: '',
     auth: 'sa',
+    keyRef: '',
     composePath: '/opt/app/docker-compose.prod.yml',
     interval: '30',
   });
@@ -113,6 +151,9 @@ export function AddApp() {
   // Switching provider resets the auth method to that provider's default.
   const setProvider = (provider: CloudProvider) =>
     setForm((f) => ({ ...f, provider, auth: PROVIDER_CONFIG[provider].auth[0][0] }));
+
+  const providerConfig = PROVIDER_CONFIG[form.provider];
+  const authOptions = providerConfig.auth;
 
   const submit = async () => {
     if (saving) return;
@@ -134,6 +175,7 @@ export function AddApp() {
         authMethod: form.auth,
         composePath: form.composePath,
         collectInterval: Number(form.interval) || 30,
+        credentialRef: form.keyRef.trim() || undefined,
       });
       await refresh();
       toast('Uygulama eklendi', { type: 'success', sub: form.name });
@@ -144,8 +186,23 @@ export function AddApp() {
     }
   };
 
-  const providerConfig = PROVIDER_CONFIG[form.provider];
-  const authOptions = providerConfig.auth;
+  // No live cloud probe exists yet, so validate that the required connection
+  // fields are filled and tell the user what still happens at agent setup.
+  const testConnection = () => {
+    const missing: string[] = [];
+    if (!form.project.trim()) missing.push(providerConfig.projectLabel);
+    if (!form.instance.trim()) missing.push('VM Instance');
+    if (!form.zone.trim()) missing.push('Zone');
+    if (form.auth === 'ssh' && !form.keyRef.trim()) missing.push('Özel anahtar yolu');
+    if (missing.length) {
+      toast('Eksik bilgi', { type: 'error', sub: missing.join(', ') });
+      return;
+    }
+    toast('Bilgiler tamam', {
+      type: 'success',
+      sub: 'Canlı bağlantı, agent VM’de çalıştığında doğrulanır',
+    });
+  };
 
   return (
     <div
@@ -297,7 +354,43 @@ export function AddApp() {
                 ))}
               </div>
             </Field>
-            <Field label={providerConfig.projectLabel} span={2}>
+            <div
+              style={{
+                gridColumn: 'span 2',
+                padding: 14,
+                borderRadius: 10,
+                background: 'var(--bg-1)',
+                border: '1px solid var(--line)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--tx-2)',
+                  marginBottom: 9,
+                }}
+              >
+                <Icon name="doc" size={14} color="var(--acc)" />
+                Bu bilgileri nereden alırım?
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {providerConfig.help.map(([label, cmd]) => (
+                  <div key={label} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                    <span style={{ fontSize: 12, color: 'var(--tx-1)', fontWeight: 600, minWidth: 130 }}>
+                      {label}
+                    </span>
+                    <span className="mono" style={{ fontSize: 11.5, color: 'var(--tx-2)' }}>
+                      {cmd}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Field label={providerConfig.projectLabel} hint={providerConfig.hints.project} span={2}>
               <TextInput
                 value={form.project}
                 onChange={(v) => set('project', v)}
@@ -305,10 +398,10 @@ export function AddApp() {
                 mono
               />
             </Field>
-            <Field label="VM Instance adı">
+            <Field label="VM Instance adı" hint={providerConfig.hints.instance}>
               <TextInput value={form.instance} onChange={(v) => set('instance', v)} placeholder="vm-pay-prod-1" mono />
             </Field>
-            <Field label="Zone">
+            <Field label="Zone" hint={providerConfig.hints.zone}>
               <TextInput value={form.zone} onChange={(v) => set('zone', v)} placeholder="europe-west1-b" mono />
             </Field>
             <Field label="Kimlik doğrulama" span={2}>
@@ -338,15 +431,24 @@ export function AddApp() {
                 ))}
               </div>
             </Field>
-            <Field label={form.auth === 'ssh' ? 'Özel anahtar yolu' : 'Kimlik bilgisi referansı'} span={2}>
+            <Field
+              label={form.auth === 'ssh' ? 'Özel anahtar yolu' : 'Kimlik bilgisi referansı'}
+              hint="opsiyonel"
+              span={2}
+            >
               <TextInput
-                value=""
-                onChange={() => {}}
+                value={form.keyRef}
+                onChange={(v) => set('keyRef', v)}
                 placeholder={
-                  form.auth === 'ssh' ? '~/.ssh/monitor_key' : 'kimlik bilgisi gizli anahtar referansı'
+                  form.auth === 'ssh' ? '~/.ssh/google_compute_engine' : 'kimlik bilgisi gizli anahtar referansı'
                 }
                 mono
               />
+              {form.auth === 'ssh' && (
+                <div className="mono" style={{ fontSize: 11, color: 'var(--tx-3)', marginTop: 6, lineHeight: 1.5 }}>
+                  ↳ {providerConfig.keyHelp}
+                </div>
+              )}
             </Field>
           </div>
         )}
@@ -424,7 +526,7 @@ export function AddApp() {
         </Button>
         <div style={{ display: 'flex', gap: 8 }}>
           {step === 1 && (
-            <Button variant="ghost" icon="refresh">
+            <Button variant="ghost" icon="refresh" onClick={testConnection}>
               Bağlantıyı test et
             </Button>
           )}
