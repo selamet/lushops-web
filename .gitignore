@@ -17,3 +17,5 @@ pnpm-debug.log*
 
 # Design handoff reference (kept locally, not part of the app source)
 design_handoff_sentinel
+
+*.tsbuildinfo
