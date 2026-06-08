@@ -14,13 +14,25 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
 };
 
-/** Sign-in gate. All API endpoints require a bearer token. */
+type Mode = 'login' | 'register';
+
+/** Sign-in / sign-up gate. All API endpoints require a bearer token. */
 export function Login() {
   const login = useAuth((s) => s.login);
+  const register = useAuth((s) => s.register);
+  const [mode, setMode] = useState<Mode>('login');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const isRegister = mode === 'register';
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError('');
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -28,9 +40,11 @@ export function Login() {
     setBusy(true);
     setError('');
     try {
-      await login(email, password);
+      if (isRegister) await register(email, fullName, password);
+      else await login(email, password);
     } catch (err) {
-      setError((err as ApiError).message || 'Giriş başarısız');
+      const fallback = isRegister ? 'Kayıt başarısız' : 'Giriş başarısız';
+      setError((err as ApiError).message || fallback);
       setBusy(false);
     }
   };
@@ -73,9 +87,25 @@ export function Login() {
           </div>
           <div>
             <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em' }}>Sentinel</div>
-            <div style={{ fontSize: 12, color: 'var(--tx-3)' }}>Oturum aç</div>
+            <div style={{ fontSize: 12, color: 'var(--tx-3)' }}>
+              {isRegister ? 'Hesap oluştur' : 'Oturum aç'}
+            </div>
           </div>
         </div>
+
+        {isRegister && (
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx-2)' }}>Ad Soyad</span>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Ahmet Yılmaz"
+              autoFocus
+              style={inputStyle}
+            />
+          </label>
+        )}
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--tx-2)' }}>E-posta</span>
@@ -84,7 +114,7 @@ export function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="admin@sentinel.dev"
-            autoFocus
+            autoFocus={!isRegister}
             style={inputStyle}
           />
         </label>
@@ -98,6 +128,9 @@ export function Login() {
             placeholder="••••••••"
             style={inputStyle}
           />
+          {isRegister && (
+            <span style={{ fontSize: 11.5, color: 'var(--tx-3)' }}>En az 8 karakter</span>
+          )}
         </label>
 
         {error && (
@@ -116,8 +149,33 @@ export function Login() {
         )}
 
         <Button variant="primary" icon="arrowRight" style={{ justifyContent: 'center' }}>
-          {busy ? 'Giriş yapılıyor…' : 'Giriş yap'}
+          {busy
+            ? isRegister
+              ? 'Hesap oluşturuluyor…'
+              : 'Giriş yapılıyor…'
+            : isRegister
+              ? 'Hesap oluştur'
+              : 'Giriş yap'}
         </Button>
+
+        <div style={{ fontSize: 12.5, color: 'var(--tx-3)', textAlign: 'center' }}>
+          {isRegister ? 'Zaten hesabın var mı? ' : 'Hesabın yok mu? '}
+          <button
+            type="button"
+            onClick={() => switchMode(isRegister ? 'login' : 'register')}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'var(--acc)',
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {isRegister ? 'Giriş yap' : 'Hesap oluştur'}
+          </button>
+        </div>
       </form>
     </div>
   );

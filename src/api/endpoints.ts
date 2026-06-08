@@ -18,6 +18,8 @@ import type {
 export const api = {
   login: (email: string, password: string) =>
     request<ApiToken>('/auth/login', { method: 'POST', form: { username: email, password } }),
+  register: (email: string, fullName: string, password: string) =>
+    request<ApiUser>('/auth/register', { method: 'POST', body: { email, fullName, password } }),
   me: () => request<ApiUser>('/auth/me'),
 
   listApps: () => request<ApiApp[]>('/apps'),
