@@ -36,7 +36,7 @@ function pageTitle(pathname: string, apps: AppModel[]): string {
     const app = apps.find((a) => a.id === am.params.id);
     return app?.name || 'Uygulama';
   }
-  return 'Sentinel';
+  return 'LushOps';
 }
 
 export function App() {

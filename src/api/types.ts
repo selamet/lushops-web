@@ -1,4 +1,4 @@
-// Response shapes returned by the Sentinel backend (camelCase, as serialized).
+// Response shapes returned by the LushOps backend (camelCase, as serialized).
 
 export type ApiRole = 'admin' | 'operator' | 'viewer';
 

@@ -3,7 +3,7 @@ import { api } from '@/api/endpoints';
 import type { ApiError } from '@/api/client';
 import type { ApiOrganization } from '@/api/types';
 
-const ACTIVE_KEY = 'sentinel_active_org';
+const ACTIVE_KEY = 'lushops_active_org';
 
 interface OrgState {
   orgs: ApiOrganization[];

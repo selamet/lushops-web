@@ -106,9 +106,9 @@ const PROVIDER_CONFIG: Record<CloudProvider, ProviderConfig> = {
     hints: { project: 'proje/hesap adı', instance: 'sunucu adı', zone: 'bölge' },
     help: [
       ['Sunucu & bölge', 'Sağlayıcı panelinden makine adını ve bölgesini al'],
-      ['SSH erişimi', 'ssh-keygen -t ed25519 -f ~/.ssh/sentinel_key ile anahtar üret'],
+      ['SSH erişimi', 'ssh-keygen -t ed25519 -f ~/.ssh/lushops_key ile anahtar üret'],
     ],
-    keyHelp: 'Sunucuya SSH yetkisi verdiğin özel anahtarın yolu, ör. ~/.ssh/sentinel_key',
+    keyHelp: 'Sunucuya SSH yetkisi verdiğin özel anahtarın yolu, ör. ~/.ssh/lushops_key',
   },
 };
 
@@ -223,7 +223,7 @@ export function AddApp() {
         <Eyebrow>Yeni kaynak</Eyebrow>
         <h1 style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 700 }}>Uygulama ekle</h1>
         <div style={{ fontSize: 13, color: 'var(--tx-2)', marginTop: 4 }}>
-          Sentinel bu VM’e SSH ile bağlanır,{' '}
+          LushOps bu VM’e SSH ile bağlanır,{' '}
           <span className="mono" style={{ color: 'var(--tx-1)' }}>
             docker stats
           </span>{' '}

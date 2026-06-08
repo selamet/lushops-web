@@ -86,7 +86,7 @@ export function Login() {
             <Icon name="activity" size={19} color="#fff" strokeW={2.4} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em' }}>Sentinel</div>
+            <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em' }}>LushOps</div>
             <div style={{ fontSize: 12, color: 'var(--tx-3)' }}>
               {isRegister ? 'Hesap oluştur' : 'Oturum aç'}
             </div>
@@ -113,7 +113,7 @@ export function Login() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@sentinel.dev"
+            placeholder="admin@lushops.dev"
             autoFocus={!isRegister}
             style={inputStyle}
           />
