@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Field, TextInput, Toggle } from '@/components/form';
 import { Button, Card, Eyebrow, Icon, type IconName } from '@/components/ui';
 import { api } from '@/api/endpoints';
+import { provisionScript } from '@/lib/agentScript';
 import { paths } from '@/lib/routes';
 import { useFleet } from '@/store/fleet';
 import { useOrgs } from '@/store/orgs';
@@ -202,6 +203,15 @@ export function AddApp() {
       type: 'success',
       sub: 'Canlı bağlantı, agent VM’de çalıştığında doğrulanır',
     });
+  };
+
+  const copyScript = async () => {
+    try {
+      await navigator.clipboard.writeText(provisionScript());
+      toast('Script kopyalandı', { type: 'success', sub: 'Sunucuda sudo ile çalıştırın' });
+    } catch {
+      toast('Kopyalanamadı', { type: 'error', sub: 'Panelden manuel kopyalayın' });
+    }
   };
 
   return (
@@ -450,6 +460,55 @@ export function AddApp() {
                 </div>
               )}
             </Field>
+
+            <div
+              style={{
+                gridColumn: 'span 2',
+                borderRadius: 10,
+                background: 'var(--bg-1)',
+                border: '1px solid var(--line)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '11px 14px',
+                  borderBottom: '1px solid var(--line)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <Icon name="terminal" size={14} color="var(--acc)" />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--tx-1)' }}>
+                    Sunucu kurulum scripti
+                  </span>
+                </div>
+                <Button variant="soft" icon="copy" size="sm" onClick={copyScript}>
+                  Kopyala
+                </Button>
+              </div>
+              <div style={{ padding: '8px 14px 4px', fontSize: 11.5, color: 'var(--tx-3)', lineHeight: 1.6 }}>
+                Sunucuya bağlanıp <span className="mono" style={{ color: 'var(--tx-1)' }}>sudo bash</span> ile
+                çalıştırın. Kullanıcı + Docker yetkisi + SSH anahtarı oluşturur ve sonunda yukarıdaki alanlara
+                yapıştıracağınız bağlantı bloğunu (private key dahil) basar.
+              </div>
+              <pre
+                className="mono"
+                style={{
+                  margin: 0,
+                  padding: '12px 14px',
+                  fontSize: 11,
+                  lineHeight: 1.55,
+                  color: 'var(--tx-2)',
+                  overflowX: 'auto',
+                  maxHeight: 260,
+                }}
+              >
+                {provisionScript()}
+              </pre>
+            </div>
           </div>
         )}
 
