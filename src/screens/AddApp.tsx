@@ -158,23 +158,33 @@ export function AddApp() {
 
   const submit = async () => {
     if (saving) return;
-    if (!form.organizationId) {
-      toast('Organizasyon seçin', { type: 'error' });
-      setStep(0);
+    // Required fields, with the step to jump to so the user can fix them.
+    const required: Array<[boolean, string, number]> = [
+      [!form.organizationId, 'Organizasyon', 0],
+      [!form.name.trim(), 'Uygulama adı', 0],
+      [!form.project.trim(), providerConfig.projectLabel, 1],
+      [!form.instance.trim(), 'VM Instance adı', 1],
+      [!form.zone.trim(), 'Zone', 1],
+      [!form.composePath.trim(), 'docker-compose dosya yolu', 2],
+    ];
+    const missing = required.filter(([bad]) => bad);
+    if (missing.length) {
+      toast('Eksik alan', { type: 'error', sub: missing.map(([, label]) => label).join(', ') });
+      setStep(missing[0][2]);
       return;
     }
     setSaving(true);
     try {
       await api.createApp({
         organizationId: form.organizationId,
-        name: form.name,
+        name: form.name.trim(),
         description: form.desc,
         env: form.env,
-        vm: { instance: form.instance, zone: form.zone },
+        vm: { instance: form.instance.trim(), zone: form.zone.trim() },
         provider: form.provider,
-        project: form.project,
+        project: form.project.trim(),
         authMethod: form.auth,
-        composePath: form.composePath,
+        composePath: form.composePath.trim(),
         collectInterval: Number(form.interval) || 30,
         credentialRef: form.keyRef.trim() || undefined,
       });
@@ -182,7 +192,10 @@ export function AddApp() {
       toast('Uygulama eklendi', { type: 'success', sub: form.name });
       navigate(paths.overview());
     } catch (e) {
-      toast('Uygulama eklenemedi', { type: 'error', sub: (e as ApiError).message });
+      const err = e as ApiError;
+      // Surface which field the API rejected (422 returns field-level details).
+      const detail = err.details?.map((d) => d.field?.replace(/^body\./, '') ?? d.message).join(', ');
+      toast('Uygulama eklenemedi', { type: 'error', sub: detail || err.message });
       setSaving(false);
     }
   };
