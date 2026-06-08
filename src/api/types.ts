@@ -27,6 +27,15 @@ export interface ApiOrganization {
   updatedAt: string;
 }
 
+export interface ApiMember {
+  id: string;
+  userId: string;
+  email: string;
+  fullName: string;
+  role: OrgRole;
+  createdAt: string;
+}
+
 export type CloudProvider = 'gcp' | 'aws' | 'azure' | 'other';
 export type AuthMethod = 'sa' | 'iam' | 'sp' | 'ssh' | 'iap' | 'key';
 
