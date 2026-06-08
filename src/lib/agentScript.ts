@@ -13,6 +13,9 @@ export function provisionScript(user = 'lushops'): string {
 #   sudo bash lushops-setup.sh
 set -euo pipefail
 
+# user-management tools live in sbin, which may be off a sudo PATH
+export PATH="/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+
 LUSHOPS_USER=${user}
 HOME_DIR=/home/$LUSHOPS_USER
 KEY_PATH=$HOME_DIR/.ssh/id_ed25519
